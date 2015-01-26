@@ -1,0 +1,113 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Controller;
+
+use Fury\Mvc\Controller\AbstractCrudController;
+use Zend\View\Model\ViewModel;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Comment\Form\Filter;
+use Zend\Form\Annotation\AnnotationBuilder;
+use DoctrineModule\Validator;
+use Comment\Validators;
+use Zend\Form;
+use Comment\Entity\EntityType;
+use Comment\Grid\EntityType\Grid;
+
+class ManagementController extends AbstractCrudController
+{
+
+    public function indexAction()
+    {
+        $sm = $this-&gt;getServiceLocator();
+        $grid = new Grid($sm);
+        $viewModel = new ViewModel(['grid' =&gt; $grid]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+
+        return $viewModel;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getCreateForm()
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $builder = new AnnotationBuilder($entityManager);
+        $form = $builder-&gt;createForm($this-&gt;getEntity());
+
+        $options = $entityManager
+            -&gt;getRepository('Comment\Entity\EntityType')-&gt;getEntities();
+        $select = $form-&gt;getElements()['entity'];
+        $select-&gt;setValueOptions($options);
+        $select-&gt;setOptions(array('empty_option' =&gt; 'Please choose entity'));
+        $form-&gt;setInputFilter(new Filter\EntityTypeInputFilter($this-&gt;getServiceLocator()));
+
+        return $form;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getEditForm()
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $form = $this-&gt;getCreateForm();
+        $form-&gt;setHydrator(new DoctrineHydrator($entityManager));
+        $form-&gt;bind($this-&gt;loadEntity());
+
+        return $form;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getEntity()
+    {
+        return new EntityType();
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

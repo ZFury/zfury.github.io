@@ -1,0 +1,725 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Fury\Grid;
+
+use Doctrine\ORM\QueryBuilder;
+use Zend\ServiceManager\ServiceLocatorInterface;
+
+abstract class AbstractGrid
+{
+    const ORDER_ASC = 'asc';
+    const ORDER_DESC = 'desc';
+
+    /**
+     *
+     * @var QueryBuilder
+     */
+    private $source;
+
+    /**
+     * @var array
+     */
+    protected $data;
+
+    /**
+     * Params array
+     * @var array
+     */
+    protected $params = [];
+
+    /**
+     * Page
+     * @var int
+     */
+    protected $page = 1;
+
+    /**
+     * Limit per page
+     * @var int
+     */
+    protected $limit = 10;
+
+    /**
+     * Default limit per page
+     * @var int
+     */
+    protected $defaultLimit = 10;
+
+    /**
+     * Order
+     * [
+     *  'field' =&gt; 'order'
+     * ]
+     * @var array
+     */
+    protected $order = [];
+
+    /**
+     * Fields that are allowed for ordering by
+     *
+     * @var array
+     */
+    protected $allowedOrders = [];
+
+    /**
+     * Filter
+     * [
+     *  'field' =&gt; 'filter'
+     * ]
+     * @var array
+     */
+    protected $filter = [];
+
+    /**
+     * Fields that are allowed for filtering by
+     *
+     * @var array
+     */
+    protected $allowedFilters = [];
+
+    /**
+     * Alias of the entity in Doctrine Query
+     * @var string
+     */
+    protected $entityAlias = '';
+
+    /**
+     * Current grid request url
+     *
+     * @var string
+     */
+    private $url;
+
+    /**
+     * Columns with aliases
+     *
+     * @var array
+     */
+    protected $columns = array();
+
+    /**
+     * Total number of rows
+     *
+     * @var int
+     */
+    protected $total = 0;
+
+    /**
+     * Aliases of the query
+     * @var array
+     */
+    protected $aliases = [];
+
+    /**
+     * Service locator
+     * @var ServiceLocatorInterface
+     */
+    public $sm;
+
+    /**
+     * __construct
+     *
+     * @param ServiceLocatorInterface $serviceManager
+     * @return AbstractGrid
+     */
+    public function __construct(ServiceLocatorInterface $serviceManager)
+    {
+        $this-&gt;sm = $serviceManager;
+        $this-&gt;init();
+        $this-&gt;processRequest();
+        $this-&gt;process();
+    }
+
+    /**
+     * Abstract function init
+     */
+    abstract protected function init();
+
+    /**
+     * Get data
+     *
+     * @return array
+     */
+    public function getData()
+    {
+        return $this-&gt;data;
+    }
+
+    /**
+     * Parses request and sets grid params
+     */
+    protected function processRequest()
+    {
+        /** @var \Zend\Http\PhpEnvironment\Request $request */
+        $request = $this-&gt;sm-&gt;get('Request');
+        $url = explode('?', $request-&gt;getRequestUri());
+        $this-&gt;url = $url[0];
+        $params = $request-&gt;getQuery();
+        if ($params-&gt;get('page')) {
+            //set page
+            $this-&gt;setPage((int)$params-&gt;get('page'));
+        }
+
+        if ($params-&gt;get('limit')) {
+            //set limit
+            $this-&gt;setLimit((int)$params-&gt;get('limit'));
+        }
+
+        foreach ($this-&gt;allowedOrders as $column) {
+            $columnMod = str_replace('.', '_', $column);
+            $order = $params-&gt;get('order-' . $columnMod);
+
+            if ($order) {
+                $this-&gt;setOrder([
+                    $column =&gt; $order
+                ]);
+            }
+        }
+
+        foreach ($this-&gt;allowedFilters as $column) {
+            $columnMod = str_replace('.', '_', $column);
+            $filter = $params-&gt;get('filter-' . $columnMod);
+            if ($filter) {
+                $this-&gt;setFilter([$column =&gt; $filter]);
+            }
+        }
+    }
+
+    /**
+     * Process
+     */
+    protected function process()
+    {
+        $source = $this-&gt;getSource();
+        /** @var \Doctrine\ORM\Query\Expr\From $from */
+        $from = current($source-&gt;getDQLPart('from'));
+        $this-&gt;entityAlias = $from-&gt;getAlias();
+        $limit = $this-&gt;getLimit();
+        $source-&gt;setMaxResults($limit);
+        $offset = $limit * ($this-&gt;getPage() - 1);
+        $source-&gt;setFirstResult($offset);
+
+        if ($order = $this-&gt;getOrder()) {
+            $source-&gt;orderBy(key($order), current($order));
+        }
+        if ($filter = $this-&gt;getFilter()) {
+            $source-&gt;where(
+                $source-&gt;expr()-&gt;orX()
+                    -&gt;add(
+                        $source-&gt;expr()
+                            -&gt;like(
+                                key($filter),
+                                $source-&gt;expr()-&gt;literal('%' . current($filter) . '%')
+                            )
+                    )
+            );
+        }
+        $data = $source-&gt;getQuery();
+
+        $this-&gt;data = $data-&gt;getArrayResult();
+        $this-&gt;total = $this-&gt;countTotalRows();
+    }
+
+    /**
+     * Get source
+     *
+     * @return \Doctrine\ORM\QueryBuilder
+     */
+    public function getSource()
+    {
+        return $this-&gt;source;
+    }
+
+    /**
+     * Set source
+     *
+     * @param \Doctrine\ORM\QueryBuilder $source
+     * @return AbstractGrid
+     */
+    public function setSource($source)
+    {
+        $this-&gt;source = $source;
+
+        return $this;
+    }
+
+    /**
+     * Get entity alias
+     *
+     * @return string
+     */
+    public function getEntityAlias()
+    {
+        return $this-&gt;entityAlias;
+    }
+
+    /**
+     * Set entity alias
+     *
+     * @param $alias
+     * @return $this
+     */
+    public function setEntityAlias($alias)
+    {
+        $this-&gt;entityAlias = $alias;
+
+        return $this;
+    }
+
+    /**
+     * Get aliases
+     *
+     * @return string
+     */
+    public function getAliases()
+    {
+        return $this-&gt;aliases;
+    }
+
+    /**
+     * Set aliases
+     *
+     * @param array $aliases
+     * @return $this
+     */
+    public function setAliases($aliases)
+    {
+        $this-&gt;aliases = $aliases;
+
+        return $this;
+    }
+
+    /**
+     * Get settings
+     *
+     * @return array
+     */
+    public function getSettings()
+    {
+        $settings = [];
+        $settings['page'] = $this-&gt;getPage();
+        $settings['limit'] = $this-&gt;getLimit();
+        $settings['orders'] = $this-&gt;getOrder();
+        return $settings;
+    }
+
+    /**
+     * Set settings
+     *
+     * @param array $params
+     * @return AbstractGrid
+     */
+    public function setParams(array $params)
+    {
+        $this-&gt;params = $params;
+
+        return $this;
+    }
+
+    /**
+     * Set page
+     *
+     * @param int $page
+     * @return AbstractGrid
+     */
+    public function setPage($page)
+    {
+        $this-&gt;page = $page;
+
+        return $this;
+    }
+
+    /**
+     * Get page
+     *
+     * @return int
+     */
+    public function getPage()
+    {
+        return $this-&gt;page;
+    }
+
+    /**
+     * Set default limit
+     *
+     * @param $limit
+     * @return $this
+     */
+    public function setDefaultLimit($limit)
+    {
+        $this-&gt;defaultLimit = $limit;
+
+        return $this;
+    }
+
+    /**
+     * Get default limit
+     *
+     * @return int
+     */
+    public function getDefaultLimit()
+    {
+        return $this-&gt;defaultLimit;
+    }
+
+    /**
+     * Set limit
+     *
+     * @param int $limit
+     * @return AbstractGrid
+     */
+    public function setLimit($limit)
+    {
+        $this-&gt;limit = $limit;
+
+        return $this;
+    }
+
+    /**
+     * Get limit
+     *
+     * @return string
+     */
+    public function getLimit()
+    {
+        return $this-&gt;limit;
+    }
+
+    /**
+     * Set order
+     *
+     * @param array $order
+     * @return AbstractGrid
+     */
+    public function setOrder($order)
+    {
+        $this-&gt;order = $order;
+
+        return $this;
+    }
+
+    /**
+     * Get order
+     *
+     * @return array
+     */
+    public function getOrder()
+    {
+        return $this-&gt;order;
+    }
+
+    /**
+     * Set allowed orders for grid
+     *
+     * @param array $orders
+     * @return $this
+     */
+    public function setAllowedOrders(array $orders)
+    {
+        $this-&gt;allowedOrders = $orders;
+
+        return $this;
+    }
+
+    /**
+     * Get allowed orders
+     *
+     * @return array
+     */
+    public function getAllowedOrders()
+    {
+        return $this-&gt;allowedOrders;
+    }
+
+    /**
+     * Set filter
+     *
+     * @param array $filter
+     * @return AbstractGrid
+     */
+    public function setFilter($filter)
+    {
+        $this-&gt;filter = $filter;
+
+        return $this;
+    }
+
+    /**
+     * Get filter
+     *
+     * @return array
+     */
+    public function getFilter()
+    {
+        return $this-&gt;filter;
+    }
+
+    /**
+     * Set fields allowed for filtering by
+     *
+     * @param array $filters
+     * @return $this
+     */
+    public function setAllowedFilters(array $filters)
+    {
+        $this-&gt;allowedFilters = $filters;
+
+        return $this;
+    }
+
+    /**
+     * Get fields allowed for filtering by
+     *
+     * @return array
+     */
+    public function getAllowedFilters()
+    {
+        return $this-&gt;allowedFilters;
+    }
+
+    /**
+     * Get total rows in result ignoring limit
+     *
+     * @return int
+     */
+    protected function countTotalRows()
+    {
+        $source = $this-&gt;getSource();
+        /** @var \Doctrine\ORM\Query\Expr\Select $select */
+        $source-&gt;resetDQLPart('select')-&gt;setFirstResult(0)-&gt;select('count(' . $this-&gt;entityAlias . ')');
+        return (int)$source-&gt;getQuery()-&gt;getSingleScalarResult();
+    }
+
+    /**
+     * Get total
+     *
+     * @return int
+     */
+    public function getTotal()
+    {
+        return $this-&gt;total;
+    }
+
+    /**
+     * Get number of pages
+     *
+     * @return int
+     */
+    public function totalPages()
+    {
+        return ceil($this-&gt;total / $this-&gt;limit);
+    }
+
+    /**
+     * Get all grid params
+     * Passing $rewrite allows you to change them
+     *
+     * @param array $rewrite
+     * @return array
+     */
+    public function getParams(array $rewrite = [])
+    {
+        $params = $this-&gt;params;
+        //set page
+        if (isset($rewrite['page'])) {
+            if ($rewrite['page'] &gt; 1) {
+                $params['page'] = $rewrite['page'];
+            } else {
+                unset($params['page']);
+            }
+        } else {
+            if ($this-&gt;page &gt; 1) {
+                $params['page'] = $this-&gt;page;
+            }
+        }
+
+        //set limit
+        if (isset($rewrite['limit'])) {
+            unset($params['page']);
+            if ($rewrite['limit'] != $this-&gt;defaultLimit) {
+                $params['limit'] = $rewrite['limit'];
+            }
+        } else {
+            if ($this-&gt;limit != $this-&gt;defaultLimit) {
+                $params['limit'] = $this-&gt;limit;
+            }
+        }
+
+        //set order
+        $orders = array_intersect_key($rewrite, array_flip(preg_grep('/order-.+/i', array_keys($rewrite))));
+
+        if (!empty($orders)) {
+            foreach ($orders as $field =&gt; $order) {
+                if (in_array(str_replace('order-', '', $field), $this-&gt;allowedOrders)) {
+                    $params[$field] = $order;
+                    break;
+                }
+            }
+        } else {
+            if (!empty($this-&gt;order)) {
+                $params['order-' . key($this-&gt;order)] = current($this-&gt;order);
+            }
+        }
+
+        //set filter
+        $filters = array_intersect_key($rewrite, array_flip(preg_grep('/filter-.+/i', array_keys($rewrite))));
+
+        if (!empty($filters)) {
+            foreach ($filters as $field =&gt; $filter) {
+                if (in_array(str_replace('filter-', '', $field), $this-&gt;allowedFilters)) {
+                    $params[$field] = $filter;
+                    break;
+                }
+            }
+        } else {
+            if (!empty($this-&gt;filter)) {
+                $params['filter-' . key($this-&gt;filter)] = current($this-&gt;filter);
+            }
+        }
+
+        return $params;
+    }
+
+    /**
+     * Number of the previous page
+     *
+     * @return int|null
+     */
+    public function prev()
+    {
+        if ($this-&gt;page == 1) {
+            return null;
+        }
+
+        return $this-&gt;page - 1;
+    }
+
+    /**
+     * Number of the next page
+     *
+     * @return int|null
+     */
+    public function next()
+    {
+        if ($this-&gt;page == $this-&gt;totalPages()) {
+            return null;
+        }
+
+        return $this-&gt;page + 1;
+    }
+
+    /**
+     * Get url for grid according to passed $params
+     *
+     * @param array $params
+     * @return string
+     */
+    public function getUrl(array $params = [])
+    {
+        $params = $this-&gt;getParams($params);
+        $constructedUrl = $this-&gt;url;
+        if (count($params)) {
+            $constructedUrl .= '?';
+            foreach ($params as $key =&gt; $val) {
+                $constructedUrl .= $key . '=' . $val . '&amp;';
+            }
+            $constructedUrl = substr($constructedUrl, 0, -1);
+        }
+        return $constructedUrl;
+    }
+
+    /**
+     * Get url for order by column name
+     *
+     * @param $column
+     * @return string
+     */
+    public function order($column)
+    {
+        if (!in_array($column, $this-&gt;allowedOrders)) {
+            return null;
+        }
+        
+        if (isset($this-&gt;order[$column])) {
+            $order = strtolower($this-&gt;order[$column]) == self::ORDER_ASC ? self::ORDER_DESC : self::ORDER_ASC;
+        } else {
+            $order = self::ORDER_ASC;
+        }
+
+        return $this-&gt;getUrl(['order-' . $column =&gt; $order]);
+    }
+
+    /**
+     * Set aliases for columns
+     *
+     * @param array $columns
+     * @return $this
+     */
+    public function setColumns(array $columns = [])
+    {
+        $this-&gt;columns = $columns;
+
+        return $this;
+    }
+
+    /**
+     * Get columns
+     *
+     * @return array
+     */
+    public function getColumns()
+    {
+        if (empty($this-&gt;columns) &amp;&amp; !empty($this-&gt;data)) {
+            //parse columns from data
+            $tmp = array_keys(current($this-&gt;data));
+            return array_combine($tmp, $tmp);
+        }
+
+        return $this-&gt;columns;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

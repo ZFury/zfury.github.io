@@ -1,0 +1,82 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Options\Grid;
+
+use Fury\Grid\AbstractGrid;
+
+class Grid extends AbstractGrid
+{
+    public function init()
+    {
+        $em = $this-&gt;sm-&gt;get('Doctrine\ORM\EntityManager');
+        $source = $em-&gt;createQueryBuilder()
+            -&gt;select(['options.namespace', 'options.key', 'options.value', 'options.description',
+                'options.created', 'options.updated'])
+            -&gt;from('\Options\Entity\Options', 'options');
+        $this-&gt;setSource($source)-&gt;setColumns(
+            [
+                'options.namespace' =&gt; 'Namespace',
+                'options.key' =&gt; 'Key',
+                'options.value' =&gt; 'Value',
+                'options.description' =&gt; 'Description',
+                'options.created' =&gt; 'Created',
+                'options.updated' =&gt; 'Updated',
+            ]
+        )-&gt;setAllowedFilters(['options.namespace', 'options.key', 'options.description'])
+            -&gt;setAllowedOrders(
+                [
+                    'options.namespace',
+                    'options.key',
+                    'options.value',
+                    'options.description',
+                    'options.created',
+                    'options.updated'
+                ]
+            );
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

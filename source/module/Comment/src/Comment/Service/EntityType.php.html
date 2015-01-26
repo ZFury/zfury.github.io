@@ -1,0 +1,96 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Service;
+
+use Zend\ServiceManager\ServiceManager;
+
+class EntityType
+{
+    /**
+     * @var null|\Zend\ServiceManager\ServiceManager
+     */
+    protected $serviceManager = null;
+
+    /**
+     * @return null|ServiceManager
+     */
+    public function getServiceLocator()
+    {
+        return $this-&gt;serviceManager;
+    }
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;serviceManager = $sm;
+    }
+
+    /**
+     * @param $aliasEntity
+     * @param $entityId
+     * @return \Comment\Entity\EntityType
+     * @throws \Exception
+     */
+    public function getEntity($aliasEntity, $entityId)
+    {
+        $objectManager = $this-&gt;serviceManager-&gt;get('Doctrine\ORM\EntityManager');
+
+        if (!$entityType = $objectManager-&gt;getRepository('Comment\Entity\EntityType')-&gt;getEntityType($aliasEntity)) {
+            throw new \Exception('Unknown entity type');
+        }
+
+        $entity = $objectManager-&gt;getRepository($entityType-&gt;getEntity())-&gt;find($entityId);
+        if (!count($entity)) {
+            throw new \Exception('Unknown entity');
+        }
+
+        return $entityType;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

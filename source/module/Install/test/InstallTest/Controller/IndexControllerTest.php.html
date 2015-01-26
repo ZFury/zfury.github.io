@@ -1,0 +1,299 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 1/14/15
+ * Time: 12:52 PM
+ */
+namespace InstallTest\Controller;
+
+use Install\Service\Install;
+use Zend\Http\Request;
+use Zend\Session\Container;
+use Zend\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
+
+class IndexControllerTest extends AbstractHttpControllerTestCase
+{
+
+    private $sessionProgress;
+
+    /**
+     *  Migration up
+     */
+    public static function setUpBeforeClass()
+    {
+        copy('config/application.config.php', 'config/application.config.php.back');
+        $reading = file_get_contents('config/application.config.php');
+        $replaced = preg_replace('#//[\s]*\'Install\'#', &quot;'Install',\n&quot;, $reading);
+        file_put_contents('config/application.config.php', $replaced);
+
+        exec('vendor/bin/doctrine-module orm:schema-tool:update --force');
+    }
+
+    /**
+     * Migration down
+     */
+    public static function tearDownAfterClass()
+    {
+        exec('vendor/bin/doctrine-module orm:schema-tool:drop --force');
+        copy('config/application.config.php.back', 'config/application.config.php');
+    }
+
+    public function tearDown()
+    {
+        $this-&gt;sessionProgress-&gt;getManager()-&gt;getStorage()-&gt;clear('progress_tracker');
+        $forms = new Container('forms');
+        $forms-&gt;getManager()-&gt;getStorage()-&gt;clear('forms');
+        parent::tearDown();
+    }
+
+    /**
+     * Set up
+     */
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include 'config/application.config.php'
+        );
+        $this-&gt;setTraceError(true);
+        $this-&gt;sessionProgress = new Container('progress_tracker');
+        parent::setUp();
+    }
+
+    /**
+     * Tests that global requirements action can be accessed
+     */
+    public function testGlobalRequirementsAction()
+    {
+        $this-&gt;dispatch('/install/index/global-requirements');
+        $this-&gt;assertEquals('install', $this-&gt;getRouteMatch()-&gt;getParam('module'));
+        $this-&gt;assertEquals('Install\Controller\Index', $this-&gt;getRouteMatch()-&gt;getParam('controller'));
+        $this-&gt;assertActionName('global-requirements');
+        $this-&gt;assertResponseStatusCode(200);
+        //assert that action is globalRequirements
+
+    }
+
+    /**
+     * Tests redirection to a current step
+     */
+    public function testRedirectionToCurrentStep()
+    {
+        $this-&gt;dispatch('/install/index/database');
+        $this-&gt;assertEquals('install', $this-&gt;getRouteMatch()-&gt;getParam('module'));
+        $this-&gt;assertEquals('Install\Controller\Index', $this-&gt;getRouteMatch()-&gt;getParam('controller'));
+        $this-&gt;assertRedirectTo('/install/index/global-requirements');
+        $this-&gt;assertResponseStatusCode(302);
+    }
+
+    /**
+     * Tests redirection after submit of global requirements action
+     */
+    public function testSubmitGlobalRequirementsAction()
+    {
+        $this-&gt;dispatch('/install/index/global-requirements', Request::METHOD_POST);
+        $this-&gt;assertRedirectTo('/install/index/database');
+        $this-&gt;assertResponseStatusCode(302);
+    }
+
+    /**
+     * Tests that database action can be accessed
+     */
+    public function testDatabaseAction()
+    {
+        $this-&gt;sessionProgress-&gt;offsetSet('global-requirements', Install::DONE);
+        $this-&gt;dispatch('/install/index/database');
+        $this-&gt;assertEquals('install', $this-&gt;getRouteMatch()-&gt;getParam('module'));
+        $this-&gt;assertEquals('Install\Controller\Index', $this-&gt;getRouteMatch()-&gt;getParam('controller'));
+        $this-&gt;assertActionName('database');
+        $this-&gt;assertResponseStatusCode(200);
+    }
+
+    /**
+     * Tests that mail action can be accessed
+     */
+    public function testMailAction()
+    {
+        $this-&gt;sessionProgress-&gt;offsetSet('database', Install::DONE);
+        $this-&gt;dispatch('/install/index/mail');
+        $this-&gt;assertEquals('install', $this-&gt;getRouteMatch()-&gt;getParam('module'));
+        $this-&gt;assertEquals('Install\Controller\Index', $this-&gt;getRouteMatch()-&gt;getParam('controller'));
+
+        $this-&gt;assertActionName('mail');
+        $this-&gt;assertResponseStatusCode(200);
+    }
+
+    /**
+     * Tests that modules action can be accessed
+     */
+    public function testModulesAction()
+    {
+        $this-&gt;sessionProgress-&gt;offsetSet('mail', Install::DONE);
+        $this-&gt;dispatch('/install/index/modules');
+        $this-&gt;assertEquals('install', $this-&gt;getRouteMatch()-&gt;getParam('module'));
+        $this-&gt;assertEquals('Install\Controller\Index', $this-&gt;getRouteMatch()-&gt;getParam('controller'));
+        $this-&gt;assertActionName('modules');
+        $this-&gt;assertResponseStatusCode(200);
+    }
+
+    /**
+     * Tests redirection after submit of modules action
+     */
+    public function testSubmitModulesAction()
+    {
+        $this-&gt;sessionProgress-&gt;offsetSet('mail', Install::DONE);
+        $this-&gt;dispatch('/install/index/modules', Request::METHOD_POST, $this-&gt;getModulesParams());
+        $this-&gt;assertRedirectTo('/install/index/modules-requirements');
+        $this-&gt;assertActionName('modules');
+        $this-&gt;assertResponseStatusCode(302);
+    }
+
+    /**
+     * Tests that modules requirements action can be accessed
+     */
+    public function testModulesRequirementsAction()
+    {
+        $this-&gt;sessionProgress-&gt;offsetSet('modules', Install::DONE);
+        $this-&gt;dispatch('/install/index/modules-requirements');
+        $this-&gt;assertEquals('install', $this-&gt;getRouteMatch()-&gt;getParam('module'));
+        $this-&gt;assertEquals('Install\Controller\Index', $this-&gt;getRouteMatch()-&gt;getParam('controller'));
+        $this-&gt;assertActionName('modules-requirements');
+        $this-&gt;assertResponseStatusCode(200);
+    }
+
+    /**
+     * Tests redirection after submit of modules requirements action
+     */
+    public function testSubmitModulesRequirementsAction()
+    {
+        $this-&gt;sessionProgress-&gt;offsetSet('modules', Install::DONE);
+        $this-&gt;dispatch('/install/index/modules-requirements', Request::METHOD_POST);
+        $this-&gt;assertRedirectTo('/install/index/finish');
+        $this-&gt;assertActionName('modules-requirements');
+        $this-&gt;assertResponseStatusCode(302);
+    }
+
+    /**
+     * Tests that finish action can be accessed
+     */
+    public function testFinishAction()
+    {
+        $this-&gt;sessionProgress-&gt;offsetSet('modules-requirements', Install::DONE);
+        $this-&gt;dispatch('/install/index/finish');
+        $this-&gt;assertEquals('install', $this-&gt;getRouteMatch()-&gt;getParam('module'));
+        $this-&gt;assertEquals('Install\Controller\Index', $this-&gt;getRouteMatch()-&gt;getParam('controller'));
+        $this-&gt;assertActionName('finish');
+        $this-&gt;assertResponseStatusCode(200);
+    }
+
+    /**
+     * @return \Zend\Mvc\Router\Http\RouteMatch
+     */
+    public function getRouteMatch()
+    {
+        return $this-&gt;getApplicationServiceLocator()-&gt;get('Application')-&gt;getMvcEvent()-&gt;getRouteMatch();
+    }
+
+    /**
+     * @return array
+     */
+    public function getDbParams()
+    {
+        return [
+          'host' =&gt; 'alpha-team.php.nixsolutions.com',
+          'port' =&gt; '3306',
+          'user' =&gt; 'p_zfs_test',
+          'password' =&gt; 'p_zfs_test',
+          'dbname' =&gt; 'p_zfs_tests'
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function getMailParams()
+    {
+        return [
+            'host' =&gt; '10.10.0.114',
+            'port' =&gt; '2525',
+            'header' =&gt; [
+                [
+                    'header-name' =&gt; 'TESTHEADER',
+                    'header-value' =&gt; 'value1'
+                ],
+                [
+                    'header-name' =&gt; 'TESTHEADER2',
+                    'header-value' =&gt; 'value2'
+                ]
+            ],
+            'emails' =&gt; [
+                ['emails' =&gt; 'test3@test3.com'],
+                ['emails' =&gt; 'test4@test4.com'],
+                ['emails' =&gt; 'test5@test5.com']
+            ],
+            'from' =&gt; [
+                ['from' =&gt; 'test@test.com'],
+                ['from' =&gt; 'test2@test2.com']
+            ]
+        ];
+    }
+
+    /**
+     * @return array
+     */
+    public function getModulesParams()
+    {
+        return [
+            'Categories' =&gt; 'good',
+            'Comment' =&gt; 'good',
+            'Mail' =&gt; 'good',
+            'Options' =&gt; 'good',
+            'Pages' =&gt; 'good',
+        ];
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

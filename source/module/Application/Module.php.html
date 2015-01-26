@@ -1,0 +1,285 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Zend Framework (http://framework.zend.com/)
+ *
+ * @link      http://github.com/zendframework/ZendSkeletonApplication for the canonical source repository
+ * @copyright Copyright (c) 2005-2014 Zend Technologies USA Inc. (http://www.zend.com)
+ * @license   http://framework.zend.com/license/new-bsd New BSD License
+ */
+
+namespace Application;
+
+use Zend\Mvc\ModuleRouteListener;
+use Zend\Mvc\MvcEvent;
+use Zend\Http\Request as HttpRequest;
+use Zend\Http\Response;
+use Zend\View\Model\JsonModel;
+
+class Module
+{
+    /**
+     * @param MvcEvent $event
+     */
+    public function onBootstrap(MvcEvent $event)
+    {
+        $eventventManager = $event-&gt;getApplication()-&gt;getEventManager();
+        $moduleRouteListener = new ModuleRouteListener();
+        $moduleRouteListener-&gt;attach($eventventManager);
+
+        $config = $event-&gt;getApplication()-&gt;getServiceManager()-&gt;get('Config');
+        $phpSettings = $config['phpSettings'];
+        foreach ($phpSettings as $settingName =&gt; $settingValue) {
+            ini_set($settingName, $settingValue);
+        }
+
+        /** @var \Zend\Mvc\MvcEvent $events */
+        $events = $event-&gt;getTarget()-&gt;getEventManager();
+        $events-&gt;attach(MvcEvent::EVENT_DISPATCH, array($this, 'onDispatch'), '-1000');
+        $events-&gt;attach(MvcEvent::EVENT_DISPATCH_ERROR, array($this, 'onDispatchError'), '99999');
+
+        set_error_handler(['Application\Module', 'errorHandler']);
+    }
+
+    /**
+     * @param MvcEvent $event
+     */
+    public function onDispatchError(MvcEvent $event)
+    {
+        if (!$this-&gt;isJson($event)) {
+            return;
+        }
+
+        $message = '';
+        $code = '';
+
+        if ($eventException = $event-&gt;getParam('exception')) {
+            $message = $eventException-&gt;getMessage();
+            $code = $eventException-&gt;getCode();
+        } elseif ($error = $event-&gt;getParam('error')) {
+            $message = $error;
+        }
+
+        $result = array(
+            'errors' =&gt; array(
+                'exception' =&gt; array(
+                    'message' =&gt; $message,
+                    'code' =&gt; $code,
+                ),
+            'data' =&gt; array(),
+            'options' =&gt; array()
+            )
+        );
+
+        $model = new JsonModel($result);
+        $event-&gt;setViewModel($model);
+        $event-&gt;stopPropagation(true);
+    }
+
+    /**
+     * @param $event
+     */
+    public function onDispatch(MvcEvent $event)
+    {
+        if (!$this-&gt;isJson($event)) {
+            return;
+        }
+        /** @var \Zend\Http\Request $response */
+        $response = $event-&gt;getResponse();
+        $response-&gt;getHeaders()-&gt;addHeaders(
+            array(
+                'Accept' =&gt; 'application/json',
+                'Content-Type' =&gt; 'application/json'
+            )
+        );
+
+        $this-&gt;jsonHandler($event);
+    }
+
+    /**
+     * @param $type
+     * @param $message
+     * @param $file
+     * @param $line
+     * @throws \Exception
+     */
+    public static function errorHandler($type, $message, $file, $line)
+    {
+        if (!($type &amp; error_reporting())) {
+            return;
+        }
+
+        throw new \Exception('Error ' . $message . ' in file ' . $file . ' at line ' . $line);
+    }
+
+    /**
+     * @return array
+     */
+    public function getConfig()
+    {
+        return include __DIR__ . '/config/module.config.php';
+    }
+
+    /**
+     * @return array
+     */
+    public function getAutoloaderConfig()
+    {
+        return array(
+            'Zend\Loader\StandardAutoloader' =&gt; array(
+                'namespaces' =&gt; array(
+                    __NAMESPACE__ =&gt; __DIR__ . '/src/' . __NAMESPACE__,
+                ),
+            ),
+        );
+    }
+
+    /**
+     * @return array
+     */
+    public function getServiceConfig()
+    {
+        return array(
+            'factories' =&gt; array(
+                'Application\Utility\UnauthorizedStrategy' =&gt; function ($sm) {
+                    $unauthorizedStrategy = new Utility\UnauthorizedStrategy('error/403');
+                    return $unauthorizedStrategy;
+                }
+            ),
+        );
+    }
+
+    /**
+     * @param $event
+     * @return bool
+     */
+    public function isJson(MvcEvent $event)
+    {
+        $request = $event-&gt;getRequest();
+
+        if (!$request instanceof HttpRequest) {
+            return false;
+        }
+
+        $headers = $request-&gt;getHeaders();
+        if (!$headers-&gt;has('Accept')) {
+            return false;
+        }
+
+        $accept = $headers-&gt;get('Accept');
+
+        $match = $accept-&gt;match('application/json');
+
+        if (!$match || $match-&gt;getTypeString() == '*/*') {
+            // not application/json
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param $event
+     */
+    public function jsonHandler(MvcEvent $event)
+    {
+        /** @var \Zend\Mvc\Controller\Plugin\FlashMessenger $flashmessenger */
+        $flashmessenger = $event-&gt;getApplication()
+            -&gt;getServiceManager()
+            -&gt;get('viewhelpermanager')
+            -&gt;get('flashMessenger');
+
+        $view = $event-&gt;getViewModel();
+        if ($view instanceof JsonModel) {
+            return;
+        }
+
+        $children = $event-&gt;getViewModel()-&gt;getChildren();
+        if ($children) {
+            foreach ($children as $child) {
+                $params = $child-&gt;getVariables();
+            }
+        } else {
+            $params = $event-&gt;getViewModel()-&gt;getVariables();
+        }
+
+        $result = array(
+            'data' =&gt; array(),
+            'errors' =&gt; array(),
+            'options' =&gt; array()
+        );
+        foreach ($params as $param) {
+            if (method_exists($param, 'toArray')) {
+                $result['data'][] = $param-&gt;toArray();
+            } elseif ($param instanceof \Zend\Form\Form) {
+                foreach ($param-&gt;getElements() as $formElement) {
+                    $messages = array();
+                    if ($formElement-&gt;getMessages()) {
+                        foreach ($formElement-&gt;getMessages() as $type =&gt; $message) {
+                            $messages[] = $message;
+                        }
+                        $key = $formElement-&gt;getName();
+                        $errors[$key] = $messages;
+                        //$formElement-&gt;getName() =&gt; array($formElement-&gt;getMessages())
+                    }
+                }
+                $result['errors'] = $errors;
+                $result['data'][] = $param-&gt;getData();
+                $result['options'] = array(
+                    'method' =&gt; $param-&gt;getAttribute('method')
+                );
+            } else {
+                $result['data'][] = $param;
+            }
+        }
+        $result['success'] = $flashmessenger-&gt;getCurrentSuccessMessages();
+        $flashmessenger-&gt;clearCurrentMessagesFromContainer();
+
+        $model = new JsonModel($result);
+        $event-&gt;setViewModel($model);
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,371 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace User\Controller;
+
+use Facebook\FacebookRedirectLoginHelper;
+use Facebook\FacebookRequest;
+use Facebook\FacebookSession;
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use Zend\Mvc\Controller\Plugin\FlashMessenger;
+use User\Form;
+use Zend\Http\Client;
+use ZendOAuth\Consumer;
+use ZendOAuth\OAuth;
+use Zend\Session\Container;
+use User\Exception\AuthException;
+use User\Service\Auth;
+
+class AuthController extends AbstractActionController
+{
+
+    /**
+     * @return \Zend\Http\Response|ViewModel
+     */
+    public function loginAction()
+    {
+        $data = $this-&gt;getRequest()-&gt;getPost();
+        $form = new Form\LoginForm(null, $this-&gt;getServiceLocator());
+        $flashMessenger = new FlashMessenger();
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            // If you used another name for the authentication service, change it here
+            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+
+            if ($form-&gt;isValid()) {
+                /**
+                 * @var \User\Service\Auth $userAuth
+                 */
+                $userAuth = $this-&gt;getServiceLocator()-&gt;get('\User\Service\Auth');
+                try {
+                    $userAuth-&gt;authenticateEquals($data['email'], $data['password']);
+
+                    $session = new Container('location');
+                    $location = $session-&gt;location;
+                    if ($location) {
+                        $session-&gt;getManager()-&gt;getStorage()-&gt;clear('location');
+                        return $this-&gt;redirect()-&gt;toUrl($location);
+                    }
+
+                    $flashMessenger-&gt;addSuccessMessage('You\'re successfully logged in');
+                    return $this-&gt;redirect()-&gt;toRoute('home');
+                } catch (AuthException $exception) {
+                    $flashMessenger-&gt;addErrorMessage($exception-&gt;getMessage());
+                }
+            }
+        }
+
+        return new ViewModel(array('form' =&gt; $form, 'serviceLocator' =&gt; $this-&gt;getServiceLocator()));
+    }
+
+    /**
+     * @return \Zend\Http\Response
+     */
+    public function logoutAction()
+    {
+        if ($this-&gt;identity()) {
+            $authService = $this-&gt;getServiceLocator()-&gt;get('Zend\Authentication\AuthenticationService');
+            $authService-&gt;clearIdentity();
+        }
+
+        return $this-&gt;redirect()-&gt;toRoute('user/default', ['controller' =&gt; 'auth', 'action' =&gt; 'login']);
+    }
+
+    /**
+     *  twitterAction
+     */
+    public function twitterAction()
+    {
+        $config = $this-&gt;getServiceLocator()-&gt;get('config')['twitter'];
+        $config['callbackUrl'] = $this-&gt;url()-&gt;fromRoute(
+            'user/default',
+            ['controller' =&gt; 'auth', 'action' =&gt; 'twitter-callback'],
+            ['force_canonical' =&gt; true]
+        );
+        OAuth::setHttpClient(new Client(null, $config['httpClientOptions']));
+        $consumer = new Consumer($config);
+        $token = $consumer-&gt;getRequestToken();
+
+        // persist the token to storage
+        $container = new Container('twitter');
+        $container-&gt;requestToken = serialize($token);
+        // redirect the user
+        $consumer-&gt;redirect();
+    }
+
+    /**
+     * @return \Zend\Http\Response
+     */
+    public function twitterCallbackAction()
+    {
+        $config = $this-&gt;getServiceLocator()-&gt;get('config')['twitter'];
+        $config['callbackUrl'] = $this-&gt;url()-&gt;fromRoute(
+            'user/default',
+            ['controller' =&gt; 'auth', 'action' =&gt; 'twitter-callback'],
+            ['force_canonical' =&gt; true]
+        );
+        OAuth::setHttpClient(new Client(null, $config['httpClientOptions']));
+        $consumer = new Consumer($config);
+        $container = new Container('twitter');
+        if ($this-&gt;getRequest()-&gt;isGet() &amp;&amp; $this-&gt;params()-&gt;fromQuery() &amp;&amp; isset($container-&gt;requestToken)) {
+            $token = $consumer-&gt;getAccessToken(
+                $this-&gt;params()-&gt;fromQuery(),
+                unserialize($container-&gt;requestToken)
+            );
+            /**
+             * @var \Doctrine\ORM\EntityManager $objectManager
+             */
+            $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+            /**
+             * @var \User\Entity\Auth $auth
+             */
+            $auth = $objectManager
+                -&gt;getRepository('User\Entity\Auth')
+                -&gt;getAuthRow(Auth::PROVIDER_TWITTER, $token-&gt;user_id);
+
+            if ($auth) {
+                $user = $auth-&gt;getUser();
+                if (!$user-&gt;isActive()) {
+                    $this-&gt;flashMessenger()-&gt;addSuccessMessage(&quot;User is not active&quot;);
+                    return $this-&gt;redirect()-&gt;toRoute('home');
+                }
+                $auth-&gt;setToken($token-&gt;oauth_token);
+                $auth-&gt;setTokenSecret($token-&gt;oauth_token_secret);
+                $auth-&gt;setTokenType(Auth::TYPE_ACCESS);
+            } else {
+                //if there is no user with provided twitter id and user is not logged in
+                if (!$this-&gt;identity()) {
+                    //create new user
+                    /**
+                     * @var \User\Entity\User $user
+                     */
+                    $user = $user = new \User\Entity\User();
+                    //todo: need to be checked for unique
+                    $user-&gt;setDisplayName($token-&gt;screen_name);
+                    $user-&gt;setRole($user::ROLE_USER);
+                    $user-&gt;activate();
+                    $objectManager-&gt;persist($user);
+                    $objectManager-&gt;flush();
+                } else {
+                    //get current authorized user
+                    $user = $this-&gt;identity()-&gt;getUser();
+                }
+                $auth = new \User\Entity\Auth();
+                $auth-&gt;setToken($token-&gt;oauth_token);
+                $auth-&gt;setTokenSecret($token-&gt;oauth_token_secret);
+                $auth-&gt;setForeignKey($token-&gt;user_id);
+                $auth-&gt;setProvider(Auth::PROVIDER_TWITTER);
+                $auth-&gt;setTokenType(Auth::TYPE_ACCESS);
+                $auth-&gt;setUserId($user-&gt;getId());
+                $user-&gt;getAuths()-&gt;add($auth);
+                $auth-&gt;setUser($user);
+            }
+
+            $objectManager-&gt;persist($user);
+            $objectManager-&gt;persist($auth);
+            $objectManager-&gt;flush();
+            $auth-&gt;login($this-&gt;getServiceLocator());
+            // Now that we have an Access Token, we can discard the Request Token
+            $container-&gt;requestToken = null;
+
+            $this-&gt;flashMessenger()-&gt;addSuccessMessage(&quot;You've successfully registered via twitter&quot;);
+            return $this-&gt;redirect()-&gt;toRoute('user/default', ['controller' =&gt; 'profile']);
+        } else {
+            $this-&gt;flashMessenger()-&gt;addErrorMessage(&quot;Invalid callback request. Oops. Sorry.&quot;);
+            return $this-&gt;redirect()-&gt;toRoute('home');
+        }
+    }
+
+    /**
+     *  facebookAction
+     */
+    public function facebookAction()
+    {
+        $config = $this-&gt;getServiceLocator()-&gt;get('config')['facebook'];
+        $config['callbackUrl'] = $this-&gt;url()-&gt;fromRoute(
+            'user/default',
+            ['controller' =&gt; 'auth', 'action' =&gt; 'facebook-callback'],
+            ['force_canonical' =&gt; true]
+        );
+        FacebookSession::setDefaultApplication($config['appId'], $config['appSecret']);
+        $helper = new FacebookRedirectLoginHelper($config['callbackUrl']);
+
+        $this-&gt;redirect()-&gt;toUrl($helper-&gt;getLoginUrl(['scope' =&gt; 'email']));
+    }
+
+    /**
+     * @return \Zend\Http\Response
+     * @throws \Facebook\FacebookRequestException
+     */
+    public function facebookCallbackAction()
+    {
+        $config = $this-&gt;getServiceLocator()-&gt;get('config')['facebook'];
+        $config['callbackUrl'] = $this-&gt;url()-&gt;fromRoute(
+            'user/default',
+            ['controller' =&gt; 'auth', 'action' =&gt; 'facebook-callback'],
+            ['force_canonical' =&gt; true]
+        );
+        FacebookSession::setDefaultApplication($config['appId'], $config['appSecret']);
+        $helper = new FacebookRedirectLoginHelper($config['callbackUrl']);
+
+        try {
+            $session = $helper-&gt;getSessionFromRedirect();
+        } catch (\Exception $ex) {
+            $this-&gt;flashMessenger()-&gt;addErrorMessage(&quot;Invalid callback request. Oops. Sorry.&quot;);
+            return $this-&gt;redirect()-&gt;toRoute('home');
+        }
+        if ($session) {
+            // Logged in
+            $request = new FacebookRequest($session, 'GET', '/me');
+
+            $response = $request-&gt;execute();
+
+            $graphObject = $response-&gt;getGraphObject();
+
+            /**
+             * @var \Doctrine\ORM\EntityManager $objectManager
+             */
+            $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+            /**
+             * @var \User\Entity\Auth $auth
+             */
+            $auth = $objectManager
+                -&gt;getRepository('User\Entity\Auth')
+                -&gt;getAuthRow(Auth::PROVIDER_FACEBOOK, $graphObject-&gt;getProperty('id'));
+
+            if ($auth) {
+                $user = $auth-&gt;getUser();
+                if (!$user-&gt;isActive()) {
+                    $this-&gt;flashMessenger()-&gt;addSuccessMessage(&quot;'User is not active'&quot;);
+                    return $this-&gt;redirect()-&gt;toRoute('home');
+                }
+                $auth-&gt;setToken($session-&gt;getAccessToken());
+                $auth-&gt;setTokenSecret(0);
+                $auth-&gt;setTokenType(Auth::TYPE_ACCESS);
+            } else {
+                if (!$this-&gt;identity()) {
+                    //create new user
+                    $user = new \User\Entity\User();
+
+                    $displayName = $graphObject-&gt;
+                        getProperty('first_name') . ' ' . $graphObject-&gt;getProperty('last_name');
+                    $user-&gt;setDisplayName($displayName);
+                    $user-&gt;setRole($user::ROLE_USER);
+                    $user-&gt;activate();
+                    $objectManager-&gt;persist($user);
+                    $objectManager-&gt;flush();
+                } else {
+                    //get current authorized user
+                    $user = $this-&gt;identity()-&gt;getUser();
+                }
+
+                $auth = new \User\Entity\Auth();
+                $auth-&gt;setToken($session-&gt;getAccessToken());
+                $auth-&gt;setTokenSecret(0);
+                $auth-&gt;setForeignKey($graphObject-&gt;getProperty('id'));
+                $auth-&gt;setProvider(Auth::PROVIDER_FACEBOOK);
+                $auth-&gt;setTokenType(Auth::TYPE_ACCESS);
+                $auth-&gt;setUserId($user-&gt;getId());
+                $user-&gt;getAuths()-&gt;add($auth);
+
+                $auth-&gt;setUser($user);
+            }
+            $objectManager-&gt;persist($user);
+            $objectManager-&gt;persist($auth);
+            $objectManager-&gt;flush();
+            $auth-&gt;login($this-&gt;getServiceLocator());
+
+            $this-&gt;flashMessenger()-&gt;addSuccessMessage(&quot;You've successfully registered via facebook&quot;);
+            return $this-&gt;redirect()-&gt;toRoute('user/default', ['controller' =&gt; 'profile']);
+        }
+
+    }
+
+    /**
+     * @return \Zend\Http\Response|ViewModel
+     * @throws \Exception
+     */
+    public function recoverPasswordAction()
+    {
+        if (!$confirm = $this-&gt;params('hash')) {
+            $this-&gt;flashMessenger()-&gt;addErrorMessage('Invalid code!');
+            return $this-&gt;redirect()-&gt;toRoute('home');
+        }
+
+        $form = new Form\SetNewPasswordForm('set-new-password', ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            if ($form-&gt;isValid()) {
+                $userService = new \User\Service\User($this-&gt;getServiceLocator());
+                $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+                /** @var \User\Entity\User $user */
+                $user = $objectManager
+                    -&gt;getRepository('User\Entity\User')
+                    -&gt;findOneBy(array('confirm' =&gt; $confirm));
+                if (!$user) {
+                    throw new \Exception('Invalid confirmation code');
+                }
+
+                try {
+                    $userService-&gt;changePassword($user, $form);
+                    $user-&gt;setConfirm(null);
+                    $objectManager-&gt;persist($user);
+                    $objectManager-&gt;flush();
+
+                    $this-&gt;flashMessenger()-&gt;addSuccessMessage('You have successfully changed your password!');
+
+                    return $this-&gt;redirect()-&gt;toRoute('home');
+                } catch (\Exception $exception) {
+                    throw $exception;
+                }
+            }
+        }
+
+        return new ViewModel(array('form' =&gt; $form));
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

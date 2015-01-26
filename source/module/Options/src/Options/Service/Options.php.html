@@ -1,0 +1,166 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Options\Service;
+
+use Zend\ServiceManager\ServiceManager;
+use Zend\Mvc\Controller\Plugin\Url;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+
+/**
+ * Class Options
+ * @package Options\Service
+ */
+class Options
+{
+    /**
+     * @var null|\Zend\ServiceManager\ServiceManager
+     */
+    protected $serviceManager = null;
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;serviceManager = $sm;
+    }
+
+    /**
+     * @return null|ServiceManager
+     */
+    public function getServiceLocator()
+    {
+        return $this-&gt;serviceManager;
+    }
+
+    /**
+     * @return \Doctrine\ORM\EntityManager
+     */
+    public function getObjectManager()
+    {
+        return $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+    }
+
+    /**
+     * get option by key &amp; namespace
+     *
+     * @param  $key
+     * @param  string $namespace
+     * @return mixed
+     */
+    public function getOption($key, $namespace = \Options\Entity\Options::NAMESPACE_DEFAULT)
+    {
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $option = $objectManager
+            -&gt;getRepository('Options\Entity\Options')
+            -&gt;find(array('namespace' =&gt; $namespace, 'key' =&gt; $key));
+        return $option;
+    }
+
+    /**
+     * get options by namespace
+     *
+     * @param  string $namespace
+     * @return mixed
+     */
+    public function getNamespace($namespace = \Options\Entity\Options::NAMESPACE_DEFAULT)
+    {
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $option = $objectManager
+            -&gt;getRepository('Options\Entity\Options')
+            -&gt;findBy(array('namespace' =&gt; $namespace));
+        return $option;
+    }
+
+    /**
+     * set option
+     *
+     * @param  $key
+     * @param  $value
+     * @param  string $namespace
+     * @param  null $description
+     * @throws \Exception
+     */
+    public function setOption(
+        $key,
+        $value,
+        $namespace = \Options\Entity\Options::NAMESPACE_DEFAULT,
+        $description = null
+    ) {
+        $data = array(
+            'key' =&gt; $key,
+            'namespace' =&gt; $namespace,
+            'value' =&gt; $value,
+            'description' =&gt; $description
+        );
+
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        /**
+         * @var \Options\Entity\Options $option
+         */
+        $option = $this-&gt;getServiceLocator()-&gt;get('Options\Entity\Options');
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+
+        try {
+            $hydrator = new DoctrineHydrator($objectManager);
+
+            $hydrator-&gt;hydrate($data, $option);
+
+            $option-&gt;setCreated(new \DateTime(date('Y-m-d H:i:s')));
+            $option-&gt;setUpdated(new \DateTime(date('Y-m-d H:i:s')));
+
+            $objectManager-&gt;persist($option);
+            $objectManager-&gt;flush();
+
+            $objectManager-&gt;getConnection()-&gt;commit();
+        } catch (\Exception $e) {
+            $objectManager-&gt;getConnection()-&gt;rollback();
+            throw $e;
+        }
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

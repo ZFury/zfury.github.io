@@ -1,0 +1,142 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Zend Framework (http://framework.zend.com/)
+ *
+ * @link      http://github.com/zendframework/ZendSkeletonApplication for the canonical source repository
+ * @copyright Copyright (c) 2005-2014 Zend Technologies USA Inc. (http://www.zend.com)
+ * @license   http://framework.zend.com/license/new-bsd New BSD License
+ */
+
+namespace Options\Controller;
+
+use Options\Grid\Grid;
+use Fury\Mvc\Controller\AbstractCrudController;
+use Zend\View\Model\ViewModel;
+use Options\Form\Create;
+use Doctrine\ORM\EntityNotFoundException;
+use Zend\Mvc\Controller\AbstractActionController;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+
+/**
+ * Class ManagementController
+ * @package Options\Controller
+ */
+class ManagementController extends AbstractCrudController
+{
+    /**
+     * @return mixed|\Options\Entity\Options
+     */
+    protected function getEntity()
+    {
+        return new \Options\Entity\Options();
+    }
+
+    /**
+     * @return mixed|Create
+     */
+    protected function getCreateForm()
+    {
+        return new \Options\Form\Create(null, ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+    }
+
+    /**
+     * @return mixed|Create
+     */
+    protected function getEditForm()
+    {
+        $form = new \Options\Form\Create(null, ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+        $form-&gt;get('submit')-&gt;setValue('Save');
+        return $form;
+    }
+
+    /**
+     * @return mixed
+     * @throws EntityNotFoundException
+     */
+    protected function loadEntity()
+    {
+        $namespace = $this-&gt;params()-&gt;fromRoute('namespace');
+        $key = $this-&gt;params()-&gt;fromRoute('key');
+
+        if (!$namespace || !$key) {
+            throw new EntityNotFoundException('Bad Request');
+        }
+
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+
+        if (
+        !$model = $objectManager
+            -&gt;getRepository(get_class($this-&gt;getEntity()))-&gt;find(['namespace' =&gt; $namespace, 'key' =&gt; $key])
+        ) {
+            throw new EntityNotFoundException('Entity not found');
+        }
+        return $model;
+    }
+
+    /**
+     * @return array|ViewModel
+     */
+    public function indexAction()
+    {
+        $sm = $this-&gt;getServiceLocator();
+        $grid = new Grid($sm);
+        $viewModel = new ViewModel(['grid' =&gt; $grid]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+        return $viewModel;
+    }
+
+    /**
+     * @return array|ViewModel
+     */
+    public function viewAction()
+    {
+        return new ViewModel(
+            array('option' =&gt; $this-&gt;loadEntity())
+        );
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,4 @@
+<script>
+    require(['dashboard']);
+</script>
+

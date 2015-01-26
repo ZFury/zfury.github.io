@@ -1,0 +1,154 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace User\Form;
+
+use Zend\Form\Form;
+
+class EditForm extends Form
+{
+    public function __construct($name = null, $options = [])
+    {
+        parent::__construct($name, $options);
+        $this-&gt;setAttribute('method', 'post');
+
+        $this-&gt;add(
+            [
+                'name' =&gt; 'id',
+                'type' =&gt; 'hidden'
+            ]
+        );
+
+        $this-&gt;add(
+            [
+                'name' =&gt; 'email',
+                'type' =&gt; 'text',
+                'options' =&gt; [
+                ],
+                'attributes' =&gt; [
+                    'class' =&gt; 'form-control',
+                    'required' =&gt; 'true',
+                ]
+            ]
+        );
+
+        $this-&gt;add(
+            [
+                'name' =&gt; 'displayName',
+                'type' =&gt; 'text',
+                'options' =&gt; [
+                    'label' =&gt; 'Name'
+                ],
+                'attributes' =&gt; [
+                    'class' =&gt; 'form-control',
+                    'required' =&gt; 'true',
+                ]
+            ]
+        );
+
+        $this-&gt;add(
+            [
+                'name' =&gt; 'password',
+                'type' =&gt; 'Password',
+                'options' =&gt; [
+                ],
+                'attributes' =&gt; [
+                    'class' =&gt; 'form-control'
+                ]
+            ]
+        );
+
+        $this-&gt;add(
+            [
+                'name' =&gt; 'repeat-password',
+                'type' =&gt; 'Password',
+                'options' =&gt; [
+                    'label' =&gt; 'Repeat password'
+                ],
+                'attributes' =&gt; [
+                    'class' =&gt; 'form-control'
+                ]
+            ]
+        );
+
+        $this-&gt;add(
+            [
+                'name' =&gt; 'role',
+                'type' =&gt; 'select',
+                'options' =&gt; [
+                    'value_options' =&gt; [
+                        'user' =&gt; 'User',
+                        'admin' =&gt; 'Admin',
+                    ]
+                ],
+                'attributes' =&gt; [
+                    'required' =&gt; 'true',
+                    'class' =&gt; 'form-control',
+                ]
+            ]
+        );
+
+        $this-&gt;add(
+            [
+                'name' =&gt; 'status',
+                'type' =&gt; 'select',
+                'options' =&gt; [
+                    'required' =&gt; 'false',
+                    'value_options' =&gt; [
+                        'active' =&gt; 'Active',
+                        'inactive' =&gt; 'Inactive',
+                        'unconfirmed' =&gt; 'Unconfirmed'
+                    ]
+                ],
+                'attributes' =&gt; [
+                    'required' =&gt; 'true',
+                    'class' =&gt; 'form-control'
+                ]
+            ]
+        );
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

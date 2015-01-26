@@ -1,0 +1,109 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/4/14
+ * Time: 3:39 PM
+ */
+
+namespace Media\Form\Filter;
+
+use Zend\InputFilter\Factory as InputFactory;
+use Zend\InputFilter\InputFilter;
+use Zend\InputFilter\InputFilterAwareInterface;
+use Zend\InputFilter\InputFilterInterface;
+use Media\Entity\File;
+
+class VideoUploadInputFilter implements InputFilterAwareInterface
+{
+    /**
+     * @var InputFilter|InputFilterInterface
+     */
+    protected $inputFilter;
+
+    /**
+     * @param InputFilterInterface $inputFilter
+     * @return void|InputFilterAwareInterface
+     * @throws \Exception
+     */
+    public function setInputFilter(InputFilterInterface $inputFilter)
+    {
+        throw new \Exception(&quot;Not used&quot;);
+    }
+
+    /**
+     * @return InputFilter|InputFilterInterface
+     */
+    public function getInputFilter()
+    {
+        if (!$this-&gt;inputFilter) {
+            $inputFilter = new InputFilter();
+            $factory = new InputFactory();
+
+            $inputFilter-&gt;add(
+                $factory-&gt;createInput(
+                    array(
+                        'name' =&gt; File::VIDEO_FILETYPE,
+                        'required' =&gt; true,
+                        'validators' =&gt; array(
+                            array(
+                                'name' =&gt; '\Zend\Validator\File\MimeType',
+                                'options' =&gt; array(
+                                    'mimeType' =&gt; ['video/mp4']
+                                ),
+                            ),
+                        )
+                    )
+                )
+            );
+            $this-&gt;inputFilter = $inputFilter;
+        }
+
+        return $this-&gt;inputFilter;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

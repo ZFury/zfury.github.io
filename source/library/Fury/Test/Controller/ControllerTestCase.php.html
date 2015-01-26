@@ -1,0 +1,176 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: babich
+ * Date: 12/3/14
+ * Time: 6:27 PM
+ */
+
+namespace Fury\Test\Controller;
+
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use User\Service\Auth;
+use User\Entity;
+use Zend\Http\Response;
+use Zend\Stdlib;
+use Zend\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
+
+abstract class ControllerTestCase extends AbstractHttpControllerTestCase
+{
+    /**
+     * Default user data.
+     *
+     * @var array
+     */
+    private $userData = [
+        'name' =&gt; 'Admin',
+        'email' =&gt; 'admin@nix.com',
+        'password' =&gt; '123456'
+    ];
+
+    /**
+     * Creates and logs in new user.
+     *
+     * @param array $userData
+     */
+    protected function setupUser(array $userData = null)
+    {
+        $this-&gt;removeUser($userData);
+        $user = $this-&gt;createUser($userData);
+        $this-&gt;loginUser($user);
+    }
+
+    /**
+     * Creates and logs in new admin user.
+     *
+     * @param array $userData
+     */
+    protected function setupAdmin(array $userData = null)
+    {
+        $this-&gt;removeUser($userData);
+        $user = $this-&gt;createUser($userData, Entity\User::ROLE_ADMIN);
+        $this-&gt;loginUser($user);
+    }
+
+    /**
+     * Deletes user.
+     *
+     * @param array $userData
+     */
+    protected function removeUser(array $userData = null)
+    {
+        !$userData ? $data = $this-&gt;userData : $data = $userData;
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $user = $objectManager-&gt;getRepository('User\Entity\User')
+            -&gt;findOneBy(array('email' =&gt; $data['email']));
+        if ($user) {
+            $objectManager-&gt;remove($user);
+            $objectManager-&gt;flush();
+        }
+    }
+
+    /**
+     * Creates new user.
+     *
+     * @param array $userData
+     * @return \User\Entity\User
+     */
+    protected function createUser(array $userData = null, $role = null)
+    {
+        !$userData ? $data = $this-&gt;userData : $data = $userData;
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $user = new Entity\User();
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        $hydrator = new DoctrineHydrator($objectManager);
+        $hydrator-&gt;hydrate($data, $user);
+        $user-&gt;setDisplayName($user-&gt;getEmail());
+        $user-&gt;setRole($user::ROLE_USER);
+        $user-&gt;setConfirm($user-&gt;generateConfirm());
+        $user-&gt;setStatus($user::STATUS_ACTIVE);
+        if ($role == $user::ROLE_ADMIN) {
+            $user-&gt;setRole($user::ROLE_ADMIN);
+        }
+        $objectManager-&gt;persist($user);
+        $objectManager-&gt;flush();
+
+        /** @var $authService \User\Service\Auth */
+        $authService = $this-&gt;getApplicationServiceLocator()-&gt;get('User\Service\Auth');
+        $authService-&gt;generateEquals($user, $data['password']);
+
+        $objectManager-&gt;getConnection()-&gt;commit();
+
+        return $user;
+    }
+
+    /**
+     * Authorizes user.
+     *
+     * @param \User\Entity\User $user
+     */
+    protected function loginUser(Entity\User $user)
+    {
+        /** @var \User\Entity\Auth $userAuth */
+        $userAuth = new Entity\Auth();
+
+        $userAuth-&gt;setUserId($user-&gt;getId());
+        $userAuth-&gt;setProvider(Auth::PROVIDER_EQUALS);
+        $userAuth-&gt;setUser($user);
+
+        $userAuth-&gt;login($this-&gt;getApplicationServiceLocator());
+    }
+
+    /**
+     * @return \PHPUnit_Framework_MockObject_MockObject
+     */
+    public function getDoctrineMock()
+    {
+        return $this-&gt;getMockBuilder('Doctrine\Common\Persistence\ObjectManagerDecorator')
+            -&gt;disableOriginalConstructor()
+            -&gt;getMock();
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

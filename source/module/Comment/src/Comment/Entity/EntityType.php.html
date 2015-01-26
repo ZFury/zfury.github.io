@@ -1,0 +1,368 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Entity;
+
+use Doctrine\ORM\Mapping as ORM;
+use Fury\DBAL\Entity\EntityBase;
+use Zend\Form\Annotation;
+use Doctrine\Common\Collections\ArrayCollection;
+
+/**
+ *
+ * @ORM\Entity(repositoryClass=&quot;Comment\Repository\EntityType&quot;)
+ * @ORM\Table(name=&quot;entity_type&quot;)
+ * @Annotation\Name(&quot;entity_type&quot;)
+ * @Annotation\Hydrator(&quot;Zend\Stdlib\Hydrator\ObjectProperty&quot;)
+ * @ORM\HasLifecycleCallbacks
+ */
+class EntityType extends EntityBase
+{
+    /**
+     * @var int
+     * @Annotation\Type(&quot;Zend\Form\Element\Hidden&quot;)
+     * @ORM\Id
+     * @ORM\Column(type=&quot;integer&quot;, options={&quot;unsigned&quot;=true})
+     * @ORM\GeneratedValue(strategy=&quot;AUTO&quot;)
+     */
+    protected $id;
+
+    /**
+     * @var string
+     * @Annotation\Type(&quot;Zend\Form\Element\Text&quot;)
+     * @Annotation\Required(true)
+     * @Annotation\Options({&quot;label&quot;:&quot;Alias entity:&quot;})
+     * @Annotation\Attributes({&quot;class&quot;:&quot;form-control&quot;})
+     * @ORM\Column(type=&quot;string&quot;, unique=true,  nullable=false)
+     */
+    protected $aliasEntity;
+
+    /**
+     * @var string
+     * @Annotation\Type(&quot;Zend\Form\Element\Select&quot;)
+     * @Annotation\Required(true)
+     * @Annotation\Options({&quot;label&quot;:&quot;Entity:&quot;})
+     * @Annotation\Attributes({&quot;class&quot;:&quot;form-control&quot;})
+     * @ORM\Column(type=&quot;string&quot;, unique=true, nullable=false)
+     */
+    protected $entity;
+
+    /**
+     * @var string
+     * @Annotation\Type(&quot;Zend\Form\Element\Textarea&quot;)
+     * @Annotation\Required(true)
+     * @Annotation\Options({&quot;label&quot;:&quot;Description:&quot;})
+     * @ORM\Column(type=&quot;text&quot;, nullable=false)
+     */
+    protected $description;
+
+    /**
+     * @var boolean
+     * @Annotation\Type(&quot;Zend\Form\Element\Checkbox&quot;)
+     * @Annotation\Required(false)
+     * @Annotation\Options({&quot;label&quot;:&quot;Visibility of comments:&quot;})
+     * @ORM\Column(type=&quot;boolean&quot;, nullable=true)
+     */
+    protected $visibleComment;
+
+    /**
+     * @var boolean
+     * @Annotation\Type(&quot;Zend\Form\Element\Checkbox&quot;)
+     * @Annotation\Required(false)
+     * @Annotation\Options({&quot;label&quot;:&quot;Possible to comment:&quot;})
+     * @ORM\Column(type=&quot;boolean&quot;, nullable=true)
+     */
+    protected $enabledComment;
+
+    /**
+     * @var created
+     * @Annotation\Exclude
+     * @ORM\Column(type=&quot;datetime&quot;)
+     */
+    protected $created;
+
+    /**
+     * @var updated
+     * @Annotation\Exclude
+     * @ORM\Column(type=&quot;datetime&quot;)
+     */
+    protected $updated;
+
+    /**
+     * @Annotation\Exclude
+     * @ORM\OneToMany(targetEntity=&quot;Comment&quot;, mappedBy=&quot;entityType&quot;, cascade={&quot;remove&quot;})
+     */
+    protected $comments;
+
+    /**
+     * Initialize the comments variable.
+     */
+    public function __construct()
+    {
+        $this-&gt;comments = new ArrayCollection();
+    }
+
+    /**
+     * @return ArrayCollection
+     */
+    public function getComments()
+    {
+        return $this-&gt;comments;
+    }
+
+    /**
+     * Now we tell doctrine that before we persist or update we call the updatedTimestamps() function.
+     *
+     * @ORM\PrePersist
+     * @ORM\PreUpdate
+     */
+    public function updatedTimestamps()
+    {
+        $this-&gt;setUpdated(new \DateTime(date('Y-m-d H:i:s')));
+
+        if ($this-&gt;getCreated() == null) {
+            $this-&gt;setCreated(new \DateTime(date('Y-m-d H:i:s')));
+        }
+    }
+
+    /**
+     * Set id.
+     *
+     * @param int $id
+     *
+     * @return void
+     */
+    public function setId($id)
+    {
+        $this-&gt;id = $id;
+    }
+
+    /**
+     * Get id.
+     *
+     * @return int
+     */
+    public function getId()
+    {
+        return $this-&gt;id;
+    }
+
+    /**
+     * Set description
+     *
+     * @param string $description
+     *
+     * @return void
+     */
+    public function setDescription($description)
+    {
+        $this-&gt;description = $description;
+    }
+
+    /**
+     * Get description.
+     *
+     * @return string
+     */
+    public function getDescription()
+    {
+        return $this-&gt;description;
+    }
+
+    /**
+     * Set aliasEntity.
+     *
+     * @param int $aliasEntity
+     *
+     * @return void
+     */
+    public function setAliasEntity($aliasEntity)
+    {
+        $this-&gt;aliasEntity = $aliasEntity;
+    }
+
+    /**
+     * Get aliasEntity.
+     *
+     * @return string
+     */
+    public function getAliasEntity()
+    {
+        return $this-&gt;aliasEntity;
+    }
+
+    /**
+     * Set entity.
+     *
+     * @param $entity
+     *
+     * @return void
+     */
+    public function setEntity($entity)
+    {
+        $this-&gt;entity = $entity;
+    }
+
+    /**
+     * Get entity.
+     *
+     * @return string
+     */
+    public function getEntity()
+    {
+        return $this-&gt;entity;
+    }
+
+    /**
+     * Set visibleComment.
+     *
+     * @param int $visibleComment
+     *
+     * @return void
+     */
+    public function setVisibleComment($visibleComment)
+    {
+        $this-&gt;visibleComment = $visibleComment;
+    }
+
+    /**
+     * Get visibleComment.
+     *
+     * @return int
+     */
+    public function getVisibleComment()
+    {
+        return $this-&gt;visibleComment;
+    }
+
+    /**
+     * Set enabledComment.
+     *
+     * @param int $enabledComment
+     *
+     * @return void
+     */
+    public function setEnabledComment($enabledComment)
+    {
+        $this-&gt;enabledComment = $enabledComment;
+    }
+
+    /**
+     * Get enabledComment.
+     *
+     * @return int
+     */
+    public function getEnabledComment()
+    {
+        return $this-&gt;enabledComment;
+    }
+
+    /**
+     * Set created.
+     *
+     * @param string $created
+     *
+     * @return void
+     */
+    public function setCreated($created)
+    {
+        $this-&gt;created = $created;
+    }
+
+    /**
+     * Get created.
+     *
+     * @return string
+     */
+    public function getCreated()
+    {
+        return $this-&gt;created;
+    }
+
+    /**
+     * Get updated.
+     *
+     * @return string
+     */
+    public function getUpdated()
+    {
+        return $this-&gt;updated;
+    }
+
+    /**
+     * Set updated.
+     *
+     * @param string $updated
+     *
+     * @return void
+     */
+    public function setUpdated($updated)
+    {
+        $this-&gt;updated = $updated;
+    }
+
+    /**
+     * @return array
+     */
+    public function toArray()
+    {
+        {
+            $result = array(
+                &quot;id&quot; =&gt; $this-&gt;getId(),
+                &quot;aliasEntity&quot; =&gt; $this-&gt;getAliasEntity(),
+                &quot;entity&quot; =&gt; $this-&gt;getEntity(),
+                &quot;VisibleComment&quot; =&gt; $this-&gt;getVisibleComment(),
+                &quot;enabledComment&quot; =&gt;$this-&gt;getEnabledComment(),
+                &quot;description&quot; =&gt; $this-&gt;getDescription(),
+                &quot;created&quot; =&gt; $this-&gt;getCreated(),
+                &quot;updated&quot; =&gt; $this-&gt;getUpdated(),
+            );
+
+            return $result;
+        }
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

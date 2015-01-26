@@ -1,0 +1,152 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/10/14
+ * Time: 11:16 AM
+ */
+namespace Media\Service;
+
+use Zend\View\Model\JsonModel;
+use Media\Entity\File as FileEntity;
+
+class Blueimp
+{
+    protected $sm;
+
+    /**
+     * @param $sm
+     */
+    public function __construct($sm)
+    {
+        $this-&gt;sm = $sm;
+    }
+
+    /**
+     * @param FileEntity $file
+     * @param $deleteUrl
+     * @return array
+     */
+    public function getFileJson(FileEntity $file, $deleteUrl)
+    {
+        /** @var \Media\Service\File  $fileService */
+        $fileService = $this-&gt;sm-&gt;get('Media\Service\File');
+        $thumbnailUrl = null;
+        $type = null;
+        switch ($file-&gt;getType()) {
+            case FileEntity::IMAGE_FILETYPE:
+                $thumbnailUrl = $fileService-&gt;getFullUrl($file-&gt;getThumb());
+                $type = 'image/jpeg';
+                break;
+            case FileEntity::AUDIO_FILETYPE:
+                $thumbnailUrl = $fileService-&gt;getFullUrl($file-&gt;getUrlPart());
+                $type = 'audio/mp3';
+                break;
+            default:
+                break;
+        }
+        return [
+            'url' =&gt; $fileService-&gt;getFullUrl($file-&gt;getUrlPart()),
+            'thumbnailUrl' =&gt; $thumbnailUrl,
+            'name' =&gt; '',
+            'type' =&gt; $type,
+            'size' =&gt; '',
+            'deleteUrl' =&gt; $deleteUrl,
+            'deleteType' =&gt; 'POST',
+        ];
+    }
+
+    /**
+     * @param $file
+     * @param $mask
+     * @return array
+     */
+    public function displayUploadedFile(FileEntity $file, $mask)
+    {
+        return ['files' =&gt; [
+            $this-&gt;getFileJson(
+                $file,
+                $this-&gt;sm-&gt;get('ViewHelperManager')-&gt;get('ServerUrl')-&gt;setPort(80)
+                -&gt;__invoke() . $mask . $file-&gt;getId()
+            )
+        ]];
+    }
+
+    /**
+     * @param array $files
+     * @param $mask
+     * @return array
+     */
+    public function displayUploadedFiles(array $files, $mask)
+    {
+        $filesJson = array();
+        foreach ($files as $file) {
+            array_push(
+                $filesJson,
+                $this-&gt;getFileJson(
+                    $file,
+                    $this-&gt;sm-&gt;get('ViewHelperManager')-&gt;get('ServerUrl')-&gt;setPort(80)
+                        -&gt;__invoke() . $mask . $file-&gt;getId()
+                )
+            );
+
+        }
+
+        return [ 'files' =&gt;  $filesJson ];
+    }
+
+    /**
+     * @return JsonModel
+     */
+    public function deleteFileJson()
+    {
+        return new JsonModel([
+            'files' =&gt;[]
+        ]);
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

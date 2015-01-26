@@ -1,0 +1,106 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: hunter
+ * Date: 05.08.14
+ * Time: 18:24
+ */
+
+namespace User\Form;
+
+use Zend\Form\Form;
+use User\Form\Filter\LoginInputFilter;
+
+class LoginForm extends Form
+{
+    public function __construct($name = null)
+    {
+        parent::__construct('form-login');
+        $this-&gt;setAttribute('method', 'post')
+            -&gt;setAttribute('role', 'form')
+            -&gt;setAttribute('class', 'form-login form-horizontal');
+        $this-&gt;setInputFilter(new LoginInputFilter());
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'security',
+                'type' =&gt; 'Zend\Form\Element\Csrf',
+            )
+        );
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'email',
+                'type' =&gt; 'text',
+                'options' =&gt; array(
+                    'label' =&gt; 'email',
+                ),
+                'attributes' =&gt; ['class' =&gt; 'form-control']
+            )
+        );
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'password',
+                'type' =&gt; 'Password',
+                'options' =&gt; array(
+                    'label' =&gt; 'password',
+                ),
+                'attributes' =&gt; ['class' =&gt; 'form-control']
+            )
+        );
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'submit',
+                'type' =&gt; 'Submit',
+                'attributes' =&gt; array(
+                    'value' =&gt; 'Sign In',
+                    'id' =&gt; 'submitbutton',
+                    'class' =&gt; 'btn btn-lg btn-primary btn-block'
+                ),
+            )
+        );
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

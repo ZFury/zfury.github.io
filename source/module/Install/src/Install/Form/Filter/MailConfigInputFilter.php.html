@@ -1,0 +1,104 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/20/14
+ * Time: 10:26 AM
+ */
+
+namespace Install\Form\Filter;
+
+use Zend\InputFilter\InputFilter;
+
+class MailConfigInputFilter extends InputFilter
+{
+    public function __construct($sm, $userId = null)
+    {
+        $this-&gt;add([
+            'name'     =&gt; 'host',
+            'required' =&gt; true,
+            'filters'  =&gt; [
+                ['name' =&gt; 'StripTags'],
+                ['name' =&gt; 'StringTrim'],
+            ],
+            'validators' =&gt; [
+                [
+                    'name'    =&gt; 'StringLength',
+                    'options' =&gt; [
+                        'encoding' =&gt; 'UTF-8',
+                        'min'      =&gt; 2,
+                        'max'      =&gt; 40,
+                    ],
+                ],
+            ],
+        ]);
+
+        $this-&gt;add([
+            'name'     =&gt; 'port',
+            'required' =&gt; true,
+            'filters'  =&gt; [
+                ['name' =&gt; 'Int'],
+            ],
+            'validators' =&gt; [
+                [
+                    'name' =&gt; 'Between',
+                    'otions' =&gt; [
+                        'min' =&gt; 1,
+                        'max'=&gt; 65535
+                    ]
+                ],
+            ],
+        ]);
+
+        $this-&gt;add(new HeaderCollectionInputFilter(), 'header');
+
+        $this-&gt;add(new EmailsCollectionInputFilter(), 'emails');
+
+        $this-&gt;add(new FromCollectionInputFilter(), 'from');
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

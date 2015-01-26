@@ -1,0 +1,127 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Form\Filter;
+
+use Zend\InputFilter\InputFilter;
+use Zend\ServiceManager\ServiceManager;
+
+class CommentInputFilter extends InputFilter
+{
+    /** @var  ServiceManager */
+    protected $sm;
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;sm = $sm;
+        $this-&gt;entity();
+        $this-&gt;comment();
+        $this-&gt;entityId();
+    }
+
+    /**
+     * @return $this
+     */
+    protected function entity()
+    {
+        $this-&gt;add(array(
+            'name' =&gt; 'entity',
+            'required' =&gt; true,
+            'filters' =&gt; array(
+                array('name' =&gt; 'StripTags'),
+                array('name' =&gt; 'StringTrim'),
+            ),
+            'validators' =&gt; array(
+                array(
+                    'name' =&gt; 'Regex',
+                    'options' =&gt; array(
+                        'pattern' =&gt; '/^[a-zA-Z-_]*$/',
+                        'message' =&gt; 'Entity type contains invalid characters'
+                    ),
+                ),
+            ),
+        ));
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function comment()
+    {
+        $this-&gt;add(array(
+            'name' =&gt; 'comment',
+            'required' =&gt; true,
+            'filters' =&gt; array(
+                array('name' =&gt; 'StripTags'),
+                array('name' =&gt; 'StringTrim'),
+            ),
+        ));
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function entityId()
+    {
+        $this-&gt;add(array(
+            'name' =&gt; 'entityId',
+            'required' =&gt; true,
+            'filters' =&gt; array(
+                array('name' =&gt; 'Int'),
+            ),
+        ));
+
+        return $this;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

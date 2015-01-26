@@ -1,0 +1,100 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: babich
+ * Date: 25.11.14
+ * Time: 11:12
+ */
+
+namespace Categories\Helper;
+
+use Zend\View\Helper\AbstractHelper;
+
+class TreeBuild extends AbstractHelper
+{
+    /**
+     * Invoke.
+     *
+     * @param  $tree array Category tree.
+     * @return string
+     */
+    public function __invoke($tree)
+    {
+        $treeView = $this-&gt;treeBuild($tree);
+        return $treeView;
+    }
+
+    /**
+     * Builds tree view for current root directory.
+     *
+     * @param  $tree array Category tree.
+     * @return string
+     */
+    public function treeBuild($tree)
+    {
+        $str = '';
+        foreach ($tree as $node) {
+            if (count($node-&gt;getChildren()) == 0) {
+                $str .= '&lt;li class=&quot;mjs-nestedSortable-leaf&quot; data-order=&quot;'
+                    . $node-&gt;getOrder() . '&quot; id=&quot;list_' . $node-&gt;getId() . '&quot;&gt;'
+                    . $this-&gt;getView()-&gt;partial('categories/management/partial/navigation.phtml', ['node' =&gt; $node])
+                    . '&lt;/li&gt;';
+            } else {
+                $str .= '&lt;li class=&quot;mjs-nestedSortable-leaf&quot; data-order=&quot;'
+                    . $node-&gt;getOrder() . '&quot; id=&quot;list_' . $node-&gt;getId() . '&quot;&gt;'
+                    . $this-&gt;getView()-&gt;partial('categories/management/partial/navigation.phtml', ['node' =&gt; $node])
+                    . '&lt;ol&gt;'
+                    . $this-&gt;treeBuild($node-&gt;getChildren()-&gt;toArray())
+                    . '&lt;/ol&gt;'
+                    . '&lt;/li&gt;';
+            }
+        }
+
+        return $str;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

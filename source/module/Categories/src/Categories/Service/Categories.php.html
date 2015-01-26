@@ -1,0 +1,181 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Categories\Service;
+
+use Zend\ServiceManager\ServiceManager;
+use Zend\Session\Container as SessionContainer;
+
+/**
+ * Class Categories
+ * @package Categories\Service
+ */
+class Categories
+{
+    /**
+     * @var null|\Zend\ServiceManager\ServiceManager
+     */
+    protected $serviceManager = null;
+
+    /**
+     * @return null|ServiceManager
+     */
+    public function getServiceLocator()
+    {
+        return $this-&gt;serviceManager;
+    }
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;serviceManager = $sm;
+    }
+
+    /**
+     * Updates a `path` field of each child of parent category.
+     *
+     * @param \Categories\Entity\Categories $category Parent category
+     */
+    public function updateChildrenPath(\Categories\Entity\Categories $category)
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $children = $category-&gt;getChildren();
+        $this-&gt;recursiveUpdatePath($children-&gt;toArray(), $category-&gt;getPath(), $entityManager);
+        $entityManager-&gt;flush();
+    }
+
+    /**
+     * Recursively search category tree and sets path for each node.
+     *
+     * @param  $tree array Category tree
+     * @param  $path string Path of each parent
+     * @param  $entityManager \Doctrine\ORM\EntityManager
+     * @return bool
+     */
+    private function recursiveUpdatePath($tree, $path, $entityManager)
+    {
+        foreach ($tree as $node) {
+            $node-&gt;setPath($path . '/' . $node-&gt;getAlias());
+            $entityManager-&gt;persist($node);
+            if (count($node-&gt;getChildren()) != 0) {
+                $this-&gt;recursiveUpdatePath($node-&gt;getChildren()-&gt;toArray(), $node-&gt;getPath(), $entityManager);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Gets tree for some root category.
+     *
+     * @param  $alias Alias of the root category
+     * @return null|\Categories\Entity\Categories
+     */
+    public function getTreeForRoot($alias)
+    {
+        /**
+         * @var \Doctrine\ORM\EntityManager $entityManager
+         */
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        return $entityManager-&gt;getRepository('Categories\Entity\Categories')-&gt;findOneBy(
+            ['parentId' =&gt; null, 'alias' =&gt; $alias]
+        );
+    }
+
+    /**
+     * Gets session.
+     *
+     * @return SessionContainer
+     */
+    public static function getSession()
+    {
+        $session = new SessionContainer('imageUpload');
+        if (!isset($session-&gt;ids) || !is_array($session-&gt;ids)) {
+            $session-&gt;ids = [];
+        }
+        return $session;
+    }
+
+    /**
+     * Clears image variable of current session.
+     */
+    public static function clearImages()
+    {
+        $session = self::getSession();
+        unset($session-&gt;ids);
+    }
+
+    /**
+     * Checks if images exist in session.
+     *
+     * @return bool
+     */
+    public function ifImagesExist()
+    {
+        $session = new SessionContainer('imageUpload');
+        if (isset($session-&gt;ids)
+            &amp;&amp; is_array($session-&gt;ids)
+            &amp;&amp; count($session-&gt;ids) != 0
+        ) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Adds new image id to session
+     *
+     * @param \Media\Entity\File $image
+     */
+    public function addImageToSession(\Media\Entity\File $image)
+    {
+        $session = self::getSession();
+        array_push($session-&gt;ids, $image-&gt;getId());
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

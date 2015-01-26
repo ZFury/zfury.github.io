@@ -1,0 +1,183 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: hunter
+ * Date: 04.09.14
+ * Time: 12:37
+ */
+namespace User\Controller;
+
+use SebastianBergmann\Exporter\Exception;
+use Fury\Mvc\Controller\AbstractCrudController;
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use User\Service;
+use User\Entity;
+use User\Form;
+use User\Grid\Grid;
+use Zend\Form\Annotation\AnnotationBuilder;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Zend\View\Model\JsonModel;
+
+class ManagementController extends AbstractCrudController
+{
+
+    public function indexAction()
+    {
+        $sm = $this-&gt;getServiceLocator();
+        $grid = new Grid($sm);
+        $viewModel = new ViewModel(['grid' =&gt; $grid]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+        return $viewModel;
+    }
+
+    public function createAction()
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $user = $this-&gt;getEntity();
+        $form = $this-&gt;getCreateForm();
+        $form-&gt;setHydrator(new DoctrineHydrator($entityManager));
+        $form-&gt;bind($user);
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form-&gt;setInputFilter(new Form\Filter\CreateInputFilter($this-&gt;getServiceLocator()));
+            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            if ($form-&gt;isValid()) {
+                $entityManager-&gt;persist($user);
+                $entityManager-&gt;flush();
+                $authService = new Service\Auth($this-&gt;getServiceLocator());
+                $authService-&gt;generateEquals($user, $form-&gt;get('password')-&gt;getValue());
+
+                return $this-&gt;redirect()-&gt;toRoute(null, ['controller' =&gt; 'management']);
+            }
+        }
+
+        return new ViewModel([
+            'form' =&gt; $form
+        ]);
+    }
+
+
+    public function editAction()
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $user = $this-&gt;loadEntity();
+        $form = $this-&gt;getEditForm();
+        $form-&gt;setHydrator(new DoctrineHydrator($entityManager));
+        $form-&gt;bind($user);
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form-&gt;setInputFilter(new Form\Filter\EditInputFilter($this-&gt;getServiceLocator()));
+            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            if ($form-&gt;isValid()) {
+                $entityManager-&gt;persist($user);
+                $entityManager-&gt;flush();
+                $authService = new Service\Auth($this-&gt;getServiceLocator());
+                if ($form-&gt;get('password')-&gt;getValue()) {
+                    $authService-&gt;generateEquals($user, $form-&gt;get('password')-&gt;getValue());
+                }
+
+                return $this-&gt;redirect()-&gt;toRoute(null, ['controller' =&gt; 'management']);
+            }
+        }
+
+        return new ViewModel([
+            'form' =&gt; $form
+        ]);
+    }
+
+    /**
+     * Grid action
+     *
+     * @return \Zend\View\Model\ViewModel
+     *
+     * Created by Maxim Mandryka maxim.mandryka@nixsolutions.com
+     */
+    public function gridAction()
+    {
+        /* @var \Zend\Http\Request $request */
+        $request = $this-&gt;getRequest();
+        $sm = $this-&gt;getServiceLocator();
+        $grid = new Grid($sm);
+        $grid-&gt;init();
+        if ($request-&gt;isXmlHttpRequest()) {
+            return new JsonModel(array(
+                'data' =&gt; $grid-&gt;getData(),
+                'allowedFilters' =&gt; $grid-&gt;getAllowedFilters(),
+                'columns' =&gt; $grid-&gt;getColumns(),
+                'totalPages' =&gt; $grid-&gt;totalPages(),
+                'allowedOrders' =&gt; $grid-&gt;getAllowedOrders(),
+                'defaultLimit' =&gt; $grid-&gt;getDefaultLimit(),
+                'defaultFilter' =&gt; $grid-&gt;getFilter(),
+                'defaultOrder' =&gt; $grid-&gt;getOrder(),
+                'order' =&gt; $grid-&gt;getOrder(),
+                'prev' =&gt; $grid-&gt;prev(),
+                'next' =&gt; $grid-&gt;next(),
+                'urlPrev' =&gt; $grid-&gt;getUrl(['page' =&gt; $grid-&gt;prev()]),
+                'urlNext' =&gt; $grid-&gt;getUrl(['page' =&gt; $grid-&gt;next()]),
+                'urlPage' =&gt; $grid-&gt;getUrl(['page' =&gt; $grid-&gt;getPage()]),
+            ));
+        } else {
+            return new ViewModel(['grid' =&gt; $grid]);
+        }
+
+    }
+
+    public function getEntity()
+    {
+        return new Entity\User();
+    }
+
+    public function getCreateForm()
+    {
+        return new Form\CreateForm();
+    }
+
+    public function getEditForm()
+    {
+        return new Form\EditForm();
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

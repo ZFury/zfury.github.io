@@ -1,0 +1,163 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Options\Form;
+
+use Zend\Form\Form;
+use Zend\InputFilter\InputFilter;
+use Zend\InputFilter\InputFilterInterface;
+use Zend\I18n\Validator;
+use Zend\Validator\Db;
+use Zend\Validator\Exception;
+use Zend\Stdlib\Hydrator\ClassMethods;
+
+/**
+ * Class Create
+ * @package Options\Form\Create
+ */
+class Create extends Form
+{
+    protected $inputFilter;
+    protected $serviceLocator;
+
+    /**
+     * @param int|null|string $name
+     * @param array $options
+     */
+    public function __construct($name, array $options)
+    {
+        $this-&gt;serviceLocator = $options['serviceLocator'];
+
+        $this-&gt;setHydrator(new ClassMethods);
+
+        parent::__construct($name);
+        $this-&gt;setAttribute('method', 'post');
+        $this-&gt;setAttribute('class', 'form-horizontal');
+        $this-&gt;setAttribute('role', 'form');
+        $this-&gt;setInputFilter(new Filter\Create());
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'namespace',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'text',
+                    'id' =&gt; 'namespace',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(
+                    'label' =&gt; 'Namespace',
+                    'label_attributes' =&gt; array(
+                        'class' =&gt; 'col-sm-2 control-label'
+                    ),
+                ),
+            )
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'key',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'text',
+                    'id' =&gt; 'key',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(
+                    'label' =&gt; 'Key',
+                    'label_attributes' =&gt; array(
+                        'class' =&gt; 'col-sm-2 control-label'
+                    ),
+                ),
+            )
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'value',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'text',
+                    'id' =&gt; 'value',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(
+                    'label' =&gt; 'Value',
+                    'label_attributes' =&gt; array(
+                        'class' =&gt; 'col-sm-2 control-label'
+                    ),
+                ),
+            )
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'description',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'text',
+                    'id' =&gt; 'description',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(
+                    'label' =&gt; 'Description',
+                    'label_attributes' =&gt; array(
+                        'class' =&gt; 'col-sm-2 control-label'
+                    ),
+                ),
+            )
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'submit',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'submit',
+                    'value' =&gt; 'Create',
+                    'id' =&gt; 'submit',
+                    'class' =&gt; 'form-control col-sm-6 btn btn-success'
+                ),
+            )
+        );
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

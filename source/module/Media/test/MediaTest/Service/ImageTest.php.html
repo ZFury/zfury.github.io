@@ -1,0 +1,216 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/5/14
+ * Time: 11:15 AM
+ */
+
+namespace MediaTest\Service;
+
+use Media\Form\ImageUpload;
+use Fury\Test\Controller\ControllerTestCase;
+use Zend\Http\Response;
+use Zend\Stdlib;
+use Zend\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
+use Media\Service;
+
+/**
+ * Class ImageTest
+ * @package MediaTest\Service
+ */
+class ImageTest extends ControllerTestCase
+{
+    /**
+     * @var bool
+     */
+    protected $traceError;
+
+    protected $imageEntityData = [
+        'extension' =&gt; 'jpg',
+        'type' =&gt; 'image',
+    ];
+    protected $imageId = null; //it will be converted to 000
+    const DIRECTORY_NAME = 'images';
+    const SIZE_ORIGINAL = 'original';
+
+    /**
+     * @var \Media\Service\Image
+     */
+    private $imageService;
+
+    /**
+     * Set up
+     */
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(include 'config/application.config.php');
+        $this-&gt;setTraceError(true);
+        $this-&gt;imageService = $this-&gt;getApplicationServiceLocator()-&gt;get('Media\Service\Image');
+        parent::setUp();
+
+    }
+
+    /**
+     * Tests path generator from root
+     * @throws \Exception
+     */
+    public function testImgPathOriginal()
+    {
+        $imgPath = $this-&gt;imageService
+            -&gt;imgPath(\Media\Service\Image::ORIGINAL, $this-&gt;imageId, $this-&gt;imageEntityData['extension']);
+        $this-&gt;assertRegExp(
+            '/[a-zA-z]*\/[a-zA-z]*\/' .
+            self::DIRECTORY_NAME .
+            '\/[' .
+            self::SIZE_ORIGINAL .
+            ']*\/[0-9]*\/[0-9]*\/[0-9]*\/[0-9]*\.[a-zA-Z]*/',
+            $imgPath
+        );
+    }
+
+    /**
+     * Tests path generator from public
+     * @throws \Exception
+     */
+    public function testImgPathOnlyPathOriginal()
+    {
+        $imgPath = $this-&gt;imageService-&gt;imgPath(
+            \Media\Service\Image::ORIGINAL,
+            $this-&gt;imageId,
+            $this-&gt;imageEntityData['extension'],
+            \Media\Service\File::FROM_PUBLIC
+        );
+        $this-&gt;assertRegExp(
+            '/[a-zA-z]*\/' .
+            self::DIRECTORY_NAME.
+            '\/[' .
+            self::SIZE_ORIGINAL .
+            ']*\/[0-9]*\/[0-9]*\/[0-9]*\/[0-9]*\.[a-zA-Z]*/',
+            $imgPath
+        );
+    }
+
+    /**
+     * Tests preparation of a given directory
+     * @throws \Exception
+     */
+    public function testPrepareDirOriginal()
+    {
+        $imgPath = $this-&gt;imageService-&gt;imgPath(
+            \Media\Service\Image::ORIGINAL,
+            $this-&gt;imageId,
+            $this-&gt;imageEntityData['extension']
+        );
+        $this-&gt;assertTrue($this-&gt;imageService-&gt;prepareDir($imgPath));
+    }
+
+    /**
+     * Tests image upload
+     */
+    public function testUploadImage()
+    {
+        $formMock = $this-&gt;getMockBuilder('Media\Form\ImageUpload')
+            -&gt;disableOriginalConstructor()
+            -&gt;getMock();
+
+        $formMock-&gt;expects($this-&gt;atLeastOnce())
+            -&gt;method('getData')
+            -&gt;will($this-&gt;returnValue($this-&gt;getImageData()));
+
+        $formMock-&gt;expects($this-&gt;atLeastOnce())
+            -&gt;method('getFileType')
+            -&gt;will($this-&gt;returnValue('image'));
+
+        $filterMock = $this-&gt;getMockBuilder('Zend\Filter\File\RenameUpload')
+            -&gt;disableOriginalConstructor()
+            -&gt;getMock();
+
+        $filterMock-&gt;expects($this-&gt;atLeastOnce())
+            -&gt;method('filter')
+            -&gt;will($this-&gt;returnValue(true));
+
+        $filterMock-&gt;expects($this-&gt;atLeastOnce())
+            -&gt;method('setTarget')
+            -&gt;will($this-&gt;returnSelf());
+
+        $doctrineMock = $this-&gt;getDoctrineMock();
+
+        $doctrineMock-&gt;expects($this-&gt;atLeastOnce())
+            -&gt;method('persist')
+            -&gt;will($this-&gt;returnValue(true));
+
+        $doctrineMock-&gt;expects($this-&gt;atLeastOnce())
+            -&gt;method('flush')
+            -&gt;will($this-&gt;returnValue(true));
+
+        $this-&gt;getApplicationServiceLocator()-&gt;setAllowOverride(true);
+        $this-&gt;getApplicationServiceLocator()-&gt;setService('Zend\Filter\File\RenameUpload', $filterMock);
+        $this-&gt;getApplicationServiceLocator()-&gt;setService('doctrine.entitymanager.orm_default', $doctrineMock);
+
+        $file = $this-&gt;getApplicationServiceLocator()-&gt;get('Media\Service\Image')-&gt;writeFile($formMock);
+
+        $this-&gt;assertNotEmpty($file);
+    }
+
+    /**
+     * @return array
+     */
+    public function getImageData()
+    {
+        return [
+            'image' =&gt; [
+                'name' =&gt; 'test.jpg',
+                'type' =&gt; 'image/jpeg',
+                'tmp_name' =&gt; __DIR__ . '/../../testFiles/test.jpg',
+                'error' =&gt; '0',
+                'size' =&gt; '29487'
+            ]
+        ];
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

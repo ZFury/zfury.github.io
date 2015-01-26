@@ -1,0 +1,204 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/12/14
+ * Time: 4:01 PM
+ */
+
+namespace Media\Entity;
+
+use Doctrine\ORM\Mapping as ORM;
+use Zend\Form\Annotation;
+
+/**
+ * Files
+ *
+ * @ORM\Entity(repositoryClass=&quot;Media\Repository\ObjectFile&quot;)
+ * @ORM\Table(name=&quot;objects_files&quot;)
+ * @Annotation\Name(&quot;object_file&quot;)
+ */
+class ObjectFile
+{
+    /**
+     * @var string
+     *
+     * @ORM\Column(name=&quot;entity_name&quot;, type=&quot;string&quot;, length=50, nullable=false)
+     * @Annotation\Filter({&quot;name&quot;:&quot;StringTrim&quot;})
+     * @Annotation\Attributes({&quot;type&quot;:&quot;text&quot;})
+     * @Annotation\Options({&quot;label&quot;:&quot;Entity name:&quot;})
+     */
+    private $entityName;
+
+    /**
+     * @var integer
+     *
+     * @ORM\Column(name=&quot;object_id&quot;, type=&quot;integer&quot;, nullable=false)
+     * @Annotation\Options({&quot;label&quot;:&quot;Object ID:&quot;})
+     */
+    private $objectId;
+
+    /**
+     * @var integer
+     *
+     * @ORM\Column(name=&quot;file_id&quot;, type=&quot;integer&quot;, nullable=true)
+     * @Annotation\Options({&quot;label&quot;:&quot;File ID:&quot;})
+     */
+    private $fileId;
+
+    /**
+     * @var integer
+     *
+     * @ORM\Column(name=&quot;id&quot;, type=&quot;integer&quot;)
+     * @ORM\Id
+     * @ORM\GeneratedValue(strategy=&quot;IDENTITY&quot;)
+     * @Annotation\Exclude()
+     */
+    private $id;
+
+
+    /**
+     * @ORM\ManyToOne(targetEntity=&quot;File&quot;, inversedBy=&quot;objectsFiles&quot;)
+     * @ORM\JoinColumn(name=&quot;file_id&quot;, referencedColumnName=&quot;id&quot;, onDelete=&quot;CASCADE&quot;)
+     */
+    private $file;
+
+    /**
+     * Set file
+     *
+     * @param  string $file
+     * @return ObjectFile
+     */
+    public function setFile($file)
+    {
+        $this-&gt;file = $file;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getFile()
+    {
+        return $this-&gt;file;
+    }
+
+    /**
+     * Set $fileId
+     *
+     * @param  string $fileId
+     * @return ObjectFile
+     */
+    public function setFileId($fileId)
+    {
+        $this-&gt;fileId = $fileId;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getFileId()
+    {
+        return $this-&gt;fileId;
+    }
+
+    /**
+     * Set entityName
+     *
+     * @param  string $entityName
+     * @return ObjectImage
+     */
+    public function setEntityName($entityName)
+    {
+        $this-&gt;entityName = $entityName;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getEntityName()
+    {
+        return $this-&gt;entityName;
+    }
+
+    /**
+     * Set objectId
+     *
+     * @param  string $objectId
+     * @return ObjectImage
+     */
+    public function setObjectId($objectId)
+    {
+        $this-&gt;objectId = $objectId;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getObjectId()
+    {
+        return $this-&gt;objectId;
+    }
+
+    /**
+     * Get id
+     *
+     * @return integer
+     */
+    public function getId()
+    {
+        return $this-&gt;id;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

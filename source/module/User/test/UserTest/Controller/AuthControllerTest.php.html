@@ -1,0 +1,211 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: hunter
+ * Date: 22.05.14
+ * Time: 16:43
+ */
+
+namespace UserTest\Controller;
+
+use SebastianBergmann\Exporter\Exception;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Zend\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
+use Fury\Test\Controller\ControllerTestCase;
+use Zend\Stdlib;
+
+class AuthControllerTest extends ControllerTestCase
+{
+
+    /**
+     * @var array
+     */
+    protected $userData = [
+        'name' =&gt; 'testUser',
+        'email' =&gt; 'testUser@nix.com',
+        'password' =&gt; '123456',
+        'repeat-password' =&gt; '123456',
+        'role' =&gt; 'user',
+        'status' =&gt; 'active',
+        'confirm' =&gt; '09310bf5aa26b8860d1705e361d1ba56'
+    ];
+
+    /**
+     * Set up tests
+     */
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include './config/application.config.php'
+        );
+
+        $this-&gt;setTraceError(true);
+        parent::setUp();
+    }
+
+    /**
+     * Set up database
+     */
+    public static function setUpBeforeClass()
+    {
+        exec('./vendor/bin/doctrine-module orm:schema-tool:update --force');
+    }
+
+    /**
+     * Tear down database
+     */
+    public static function tearDownAfterClass()
+    {
+        exec('./vendor/bin/doctrine-module orm:schema-tool:drop --force');
+    }
+
+    /**
+     *  login action test
+     */
+    public function testLoginActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/user/auth/login');
+        $this-&gt;assertResponseStatusCode(200);
+        $this-&gt;assertModuleName('User');
+        $this-&gt;assertControllerName('User\Controller\Auth');
+        $this-&gt;assertControllerClass('AuthController');
+        $this-&gt;assertMatchedRouteName('user/default');
+    }
+
+    /**
+     *  recovery-password action test
+     */
+    public function testRecoverPasswordAction()
+    {
+        $this-&gt;createUserWithHash($this-&gt;userData);
+
+        $form = new  \User\Form\SetNewPasswordForm(
+            'set-password',
+            ['serviceLocator' =&gt; $this-&gt;getApplicationServiceLocator()]
+        );
+        $path = '/user/auth/recover-password/' . $this-&gt;userData['confirm'];
+        $data = array(
+            'password' =&gt; '123456',
+            'repeat-password' =&gt; '123456',
+            'security' =&gt; $form-&gt;get('security')-&gt;getValue()
+        );
+        $this-&gt;dispatch($path, 'POST', $data);
+        $this-&gt;assertEquals(302, $this-&gt;getResponse()-&gt;getStatusCode());
+        $this-&gt;assertRedirectTo('/');
+    }
+
+    /**
+     *  logout action test access
+     */
+    public function testLogoutActionCanBeAccessed()
+    {
+        $this-&gt;setupUser();
+        $this-&gt;dispatch('/user/auth/logout');
+        $this-&gt;assertResponseStatusCode(302);
+        $this-&gt;assertRedirectTo('/user/auth/login');
+    }
+
+    /**
+     *  login action test
+     */
+    public function testLoginAction()
+    {
+        $form = new  \User\Form\LoginForm('form-login', ['serviceLocator' =&gt; $this-&gt;getApplicationServiceLocator()]);
+        $userData = [
+            'name' =&gt; 'User',
+            'email' =&gt; 'user@nix.com',
+            'password' =&gt; '123456'
+        ];
+        $this-&gt;createUser($userData, \User\Entity\User::ROLE_USER);
+        $postData = [
+            'email' =&gt; $userData['email'],
+            'password' =&gt; $userData['password'],
+            'security' =&gt; $form-&gt;get('security')-&gt;getValue()
+        ];
+
+        $this-&gt;dispatch('/user/auth/login', 'POST', $postData);
+        $this-&gt;assertResponseStatusCode(302);
+        $this-&gt;assertRedirectTo('/');
+    }
+
+    /**
+     *  logout action test
+     */
+    public function testLogoutAction()
+    {
+        $this-&gt;setupUser();
+        $this-&gt;dispatch('/user/auth/logout');
+        $this-&gt;assertResponseStatusCode(302);
+        $this-&gt;assertRedirectTo('/user/auth/login');
+    }
+
+    /**
+     * @param array $userData
+     * @return \User\Entity\User
+     */
+    public function createUserWithHash(array $userData)
+    {
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $user = new \User\Entity\User();
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        $hydrator = new DoctrineHydrator($objectManager);
+        $hydrator-&gt;hydrate($userData, $user);
+        $user-&gt;setDisplayName($user-&gt;getEmail());
+
+        $objectManager-&gt;persist($user);
+        $objectManager-&gt;flush();
+
+        /** @var $authService \User\Service\Auth */
+        $authService = $this-&gt;getApplicationServiceLocator()-&gt;get('User\Service\Auth');
+        $authService-&gt;generateEquals($user, $userData['password']);
+
+        $objectManager-&gt;getConnection()-&gt;commit();
+
+        return $user;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

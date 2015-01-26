@@ -1,0 +1,410 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace User\Entity;
+
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\ORM\Event\LifecycleEventArgs;
+use Doctrine\ORM\Mapping as ORM;
+use Fury\Media\File;
+use Zend\Form\Annotation;
+
+/**
+ * An example of how to implement a role aware user entity.
+ *
+ * @ORM\Entity(repositoryClass=&quot;User\Repository\User&quot;)
+ * @ORM\Table(name=&quot;users&quot;)
+ * @Annotation\Name(&quot;user&quot;)
+ * @Annotation\Hydrator(&quot;Zend\Stdlib\Hydrator\ObjectProperty&quot;)
+ * @ORM\HasLifecycleCallbacks
+ * @author                                                     Oleksii Novikov
+ */
+class User
+{
+    use File;
+
+    const ROLE_USER = 'user';
+
+    const ROLE_ADMIN = 'admin';
+
+    const STATUS_ACTIVE = 'active';
+    const STATUS_INACTIVE = 'inactive';
+    const STATUS_UNCONFIRMED = 'unconfirmed';
+
+    /**
+     * @var int
+     * @Annotation\Type(&quot;Zend\Form\Element\Text&quot;)
+     * @Annotation\Exclude
+     * @ORM\Id
+     * @ORM\Column(type=&quot;integer&quot;, options={&quot;unsigned&quot;=true})
+     * @ORM\GeneratedValue(strategy=&quot;AUTO&quot;)
+     */
+    protected $id;
+
+    /**
+     * @var string
+     * @Annotation\Type(&quot;Zend\Form\Element\Email&quot;)
+     * @Annotation\Required(false)
+     * @Annotation\Filter({&quot;name&quot;:&quot;StringTrim&quot;})
+     * @Annotation\Attributes({&quot;class&quot;:&quot;form-control&quot;})
+     * @Annotation\Validator({&quot;name&quot;:&quot;EmailAddress&quot;})
+     * Annotation\Validator({&quot;name&quot;:&quot;Db\NoRecordExists&quot;,
+     * &quot;options&quot;:{&quot;adapter&quot;: &quot;Db\Adapter&quot;, &quot;table&quot; : &quot;users&quot;, &quot;fields&quot; : &quot;email&quot;}})
+     * @ORM\Column(type=&quot;string&quot;, unique=true, nullable=true, length=255)
+     */
+    protected $email;
+
+    /**
+     * @var string
+     * @Annotation\Type(&quot;Zend\Form\Element\Text&quot;)
+     * @Annotation\Required(true)
+     * @Annotation\Filter({&quot;name&quot;:&quot;StringTrim&quot;})
+     * @Annotation\Attributes({&quot;class&quot;:&quot;form-control&quot;})
+     * @ORM\Column(type=&quot;string&quot;, length=50, nullable=true)
+     */
+    protected $displayName;
+
+    /**
+     * @var string
+     * @Annotation\Type(&quot;Zend\Form\Element\Select&quot;)
+     * @Annotation\Required(false)
+     * @Annotation\Options({&quot;label&quot;:&quot;Role:&quot;, &quot;value_options&quot;:{&quot;member&quot;:&quot;Member&quot;, &quot;admin&quot;:&quot;Admin&quot;}})
+     * @Annotation\Attributes({&quot;class&quot;:&quot;form-control&quot;})
+     * @ORM\Column(type=&quot;string&quot;, length=128, options={&quot;default&quot; = &quot;member&quot;})
+     */
+    protected $role;
+
+    /**
+     * @var string
+     * @Annotation\Exclude
+     * @ORM\Column(type=&quot;string&quot;, nullable=true, length=128)
+     */
+    protected $confirm;
+
+    /**
+     * @var string
+     * @Annotation\Type(&quot;Zend\Form\Element\Select&quot;)
+     * @Annotation\Required(true)
+     * @Annotation\Options({&quot;label&quot;:&quot;Satus:&quot;,
+     * &quot;value_options&quot;:{&quot;active&quot; : &quot;active&quot;, &quot;inactive&quot; : &quot;inactive&quot;, &quot;unconfirmed&quot; : &quot;unconfirmed&quot;}})
+     * @Annotation\Attributes({&quot;class&quot;:&quot;form-control&quot;})
+     * @ORM\Column(type=&quot;enumstatus&quot;, nullable=false, options={&quot;default&quot; = &quot;unconfirmed&quot;})
+     */
+    protected $status;
+
+    /**
+     * @var created
+     * @Annotation\Exclude
+     * @ORM\Column(type=&quot;datetime&quot;)
+     */
+    protected $created;
+
+    /**
+     * @var updated
+     * @Annotation\Exclude
+     * @ORM\Column(type=&quot;datetime&quot;)
+     */
+    protected $updated;
+
+    /**
+     * @Annotation\Exclude
+     * @ORM\OneToMany(targetEntity=&quot;Auth&quot;, mappedBy=&quot;user&quot;, cascade={&quot;remove&quot;})
+     */
+    private $auths;
+
+    private $entityManager;
+
+    /**
+     * Initialies the auths variable.
+     */
+    public function __construct()
+    {
+        $this-&gt;auths = new ArrayCollection();
+    }
+
+    /**
+     * @return ArrayCollection
+     */
+    public function getAuths()
+    {
+        return $this-&gt;auths;
+    }
+
+    /**
+     * Now we tell doctrine that before we persist or update we call the updatedTimestamps() function.
+     *
+     * @ORM\PrePersist
+     * @ORM\PreUpdate
+     */
+    public function updatedTimestamps()
+    {
+        $this-&gt;setUpdated(new \DateTime(date('Y-m-d H:i:s')));
+
+        if ($this-&gt;getCreated() == null) {
+            $this-&gt;setCreated(new \DateTime(date('Y-m-d H:i:s')));
+        }
+    }
+
+    /**
+     * Get id.
+     *
+     * @return int
+     */
+    public function getId()
+    {
+        return $this-&gt;id;
+    }
+
+    /**
+     * Set id.
+     *
+     * @param int $id
+     *
+     * @return void
+     */
+    public function setId($id)
+    {
+        $this-&gt;id = (int)$id;
+    }
+
+    /**
+     * Get email.
+     *
+     * @return string
+     */
+    public function getEmail()
+    {
+        return $this-&gt;email;
+    }
+
+    /**
+     * Set email.
+     *
+     * @param string $email
+     *
+     * @return void
+     */
+    public function setEmail($email)
+    {
+        $this-&gt;email = $email;
+    }
+
+    /**
+     * Get displayName.
+     *
+     * @return string
+     */
+    public function getDisplayName()
+    {
+        return $this-&gt;displayName;
+    }
+
+    /**
+     * Set displayName.
+     *
+     * @param string $displayName
+     *
+     * @return void
+     */
+    public function setDisplayName($displayName)
+    {
+        $this-&gt;displayName = $displayName;
+    }
+
+    /**
+     * Get status.
+     *
+     * @return string
+     */
+    public function getStatus()
+    {
+        return $this-&gt;status;
+    }
+
+    /**
+     * Set status.
+     *
+     * @param string $status
+     *
+     * @return void
+     */
+    public function setStatus($status)
+    {
+        $this-&gt;status = $status;
+    }
+
+    /**
+     * Get role.
+     *
+     * @return int
+     */
+    public function getRole()
+    {
+        return $this-&gt;role;
+    }
+
+    /**
+     * Set role.
+     *
+     * @param int $role
+     *
+     * @return void
+     */
+    public function setRole($role)
+    {
+        $this-&gt;role = $role;
+    }
+
+    /**
+     * @return string
+     */
+    public function getConfirm()
+    {
+        return $this-&gt;confirm;
+    }
+
+    /**
+     * @param $confirm
+     */
+    public function setConfirm($confirm)
+    {
+        $this-&gt;confirm = $confirm;
+    }
+
+    /**
+     * Get created.
+     *
+     * @return string
+     */
+    public function getCreated()
+    {
+        return $this-&gt;created;
+    }
+
+    /**
+     * Set created.
+     *
+     * @param string $created
+     *
+     * @return void
+     */
+    public function setCreated($created)
+    {
+        $this-&gt;created = $created;
+    }
+
+    /**
+     * Get updated.
+     *
+     * @return string
+     */
+    public function getUpdated()
+    {
+        return $this-&gt;updated;
+    }
+
+    /**
+     * Set updated.
+     *
+     * @param string $updated
+     *
+     * @return void
+     */
+    public function setUpdated($updated)
+    {
+        $this-&gt;updated = $updated;
+    }
+
+    /**
+     * @return string
+     */
+    public function generateConfirm()
+    {
+        return md5($this-&gt;getId() . microtime(false) . $this-&gt;getEmail());
+    }
+
+    /**
+     * @return $this
+     */
+    public function activate()
+    {
+        $this-&gt;setStatus(self::STATUS_ACTIVE);
+        $this-&gt;setConfirm(null);
+
+        return $this;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isActive()
+    {
+        return $this-&gt;getStatus() == self::STATUS_ACTIVE;
+    }
+
+    /**
+     * @return bool
+     */
+    public function isUnconfirmed()
+    {
+        return $this-&gt;getStatus() == self::STATUS_UNCONFIRMED;
+    }
+
+
+    /**
+     * @ORM\PostLoad
+     */
+    public function setEntityManager(LifecycleEventArgs $args)
+    {
+        $this-&gt;entityManager = $args-&gt;getEntityManager();
+    }
+
+    public function getEntityName()
+    {
+        return 'User';
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,78 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Grid\EntityType;
+
+use Fury\Grid\AbstractGrid;
+
+class Grid extends AbstractGrid
+{
+    public function init()
+    {
+        $em = $this-&gt;sm-&gt;get('Doctrine\ORM\EntityManager');
+        $source = $em-&gt;createQueryBuilder()-&gt;select([
+            'entity_type.id',
+            'entity_type.aliasEntity',
+            'entity_type.entity',
+            'entity_type.description',
+            'entity_type.visibleComment',
+            'entity_type.enabledComment'
+        ])
+            -&gt;from('\Comment\Entity\EntityType', 'entity_type');
+        $this-&gt;setSource($source)-&gt;setEntityAlias('entity_type')
+            -&gt;setColumns([
+                'entity_type.id' =&gt; 'Id',
+                'entity_type.aliasEntity' =&gt; 'Alias',
+                'entity_type.entity' =&gt; 'Entity',
+                'entity_type.description' =&gt; 'Description',
+                'entity_type.visibleComment' =&gt; 'Visible comments',
+                'entity_type.enabledComment' =&gt; 'Possible to comment',
+            ])
+            -&gt;setAllowedFilters(['entity_type.aliasEntity', 'entity_type.entity'])
+            -&gt;setAllowedOrders(['entity_type.aliasEntity']);
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

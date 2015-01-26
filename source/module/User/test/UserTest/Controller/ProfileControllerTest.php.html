@@ -1,0 +1,130 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: hunter
+ * Date: 22.05.14
+ * Time: 16:43
+ */
+
+namespace UserTest\Controller;
+
+use SebastianBergmann\Exporter\Exception;
+use Zend\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
+use Fury\Test\Controller\ControllerTestCase;
+
+class ProfileControllerTest extends ControllerTestCase
+{
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include './config/application.config.php'
+        );
+
+        $this-&gt;setTraceError(true);
+        parent::setUp();
+    }
+
+    /**
+     * Set up database
+     */
+    public static function setUpBeforeClass()
+    {
+        exec('./vendor/bin/doctrine-module orm:schema-tool:update --force');
+    }
+
+    /**
+     * Tear down database
+     */
+    public static function tearDownAfterClass()
+    {
+        exec('./vendor/bin/doctrine-module orm:schema-tool:drop --force');
+    }
+
+    public function testIndexActionCanBeAccessed()
+    {
+        $this-&gt;setupUser();
+
+        $this-&gt;dispatch('/user/profile');
+        $this-&gt;assertResponseStatusCode(200);
+        $this-&gt;assertModuleName('User');
+        $this-&gt;assertControllerName('User\Controller\Profile');
+        $this-&gt;assertControllerClass('ProfileController');
+        $this-&gt;assertMatchedRouteName('user/default');
+    }
+
+    public function testChangePasswordActionCanBeAccessed()
+    {
+        $this-&gt;setupUser();
+
+        $this-&gt;dispatch('/user/profile/change-password');
+        $this-&gt;assertResponseStatusCode(200);
+        $this-&gt;assertModuleName('User');
+        $this-&gt;assertControllerName('User\Controller\Profile');
+        $this-&gt;assertControllerClass('ProfileController');
+        $this-&gt;assertMatchedRouteName('user/default');
+    }
+
+    public function testChangePasswordAction()
+    {
+        $userData = [
+            'name' =&gt; 'User',
+            'email' =&gt; 'user@nix.com',
+            'password' =&gt; '123456'
+        ];
+        $user = $this-&gt;createUser($userData, \User\Entity\User::ROLE_USER);
+        $this-&gt;loginUser($user);
+        $postData = [
+            'currentPassword' =&gt; $userData['password'],
+            'password' =&gt; '111',
+            'repeat-password' =&gt; '111',
+        ];
+        $this-&gt;dispatch('/user/profile/change-password', 'POST', $postData);
+        $this-&gt;assertResponseStatusCode(302);
+        $this-&gt;assertRedirectTo('/');
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,216 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: hunter
+ * Date: 01.10.14
+ * Time: 13:48
+ */
+namespace User\Service;
+
+use Zend\Crypt\Password\Bcrypt;
+use Zend\ServiceManager\ServiceManager;
+use User\Exception\AuthException;
+
+class Auth
+{
+    const TYPE_ACCESS = 'access';
+
+    const PROVIDER_EQUALS = 'equals';
+    const PROVIDER_TOKEN = 'token';
+    const PROVIDER_LDAP = 'ldap';
+    const PROVIDER_TWITTER = 'twitter';
+    const PROVIDER_FACEBOOK = 'facebook';
+
+    /**
+     * @var null|\Zend\ServiceManager\ServiceManager
+     */
+    protected $serviceManager = null;
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;serviceManager = $sm;
+    }
+
+    /**
+     * @return null|ServiceManager
+     */
+    public function getServiceLocator()
+    {
+        return $this-&gt;serviceManager;
+    }
+
+    /**
+     * @return \Doctrine\ORM\EntityManager
+     */
+    public function getObjectManager()
+    {
+        return $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+    }
+
+    /**
+     * @param \User\Entity\Auth $auth
+     * @param $password
+     * @return string
+     */
+    public static function encrypt(\User\Entity\Auth $auth, $password)
+    {
+        $bcrypt = new Bcrypt;
+        $bcrypt-&gt;setSalt($auth-&gt;getTokenSecret());
+
+        return $bcrypt-&gt;create($password);
+    }
+
+    /**
+     * @param \User\Entity\User $user
+     * @param $password
+     * @return \User\Entity\Auth
+     */
+    public function generateEquals(\User\Entity\User $user, $password)
+    {
+        //delete row
+        $auth = $this-&gt;getObjectManager()
+            -&gt;getRepository('User\Entity\Auth')
+            -&gt;findOneBy(['userId' =&gt; $user-&gt;getId(), 'provider' =&gt; Auth::PROVIDER_EQUALS]);
+//            -&gt;findOneByUserId($user-&gt;getId());
+
+        if ($auth) {
+            $this-&gt;getObjectManager()-&gt;remove($auth);
+            $this-&gt;getObjectManager()-&gt;flush();
+        }
+        // new auth row
+        $row = new \User\Entity\Auth();
+        $row-&gt;setUserId($user-&gt;getId());
+        $row-&gt;setForeignKey($user-&gt;getEmail());
+        $row-&gt;setProvider(self::PROVIDER_EQUALS);
+        $row-&gt;setTokenType(self::TYPE_ACCESS);
+
+        // generate secret
+        $alpha = range('a', 'z');
+        shuffle($alpha);
+        $secret = array_slice($alpha, 0, rand(5, 15));
+        $secret = md5($user-&gt;getId() . join('', $secret));
+        $row-&gt;setTokenSecret($secret);
+
+        // encrypt password and save as token
+        $row-&gt;setToken(self::encrypt($row, $password));
+        $user-&gt;getAuths()-&gt;add($row);
+        $row-&gt;setUser($user);
+        $this-&gt;getObjectManager()-&gt;persist($row);
+        $this-&gt;getObjectManager()-&gt;flush();
+
+        return $row;
+    }
+
+    /**
+     * @param $email
+     * @param $password
+     * @return \User\Entity\Auth
+     * @throws AuthException
+     */
+    public function authenticateEquals($email, $password)
+    {
+        $authService = $this-&gt;createAuthService($email, $password);
+        $authResult = $authService-&gt;authenticate();
+
+        if (!$authResult-&gt;isValid()) {
+            throw new AuthException('Wrong login or password');
+        }
+
+        /**
+         * @var \User\Entity\Auth $authRow
+         */
+        $authRow = $authResult-&gt;getIdentity();
+        $user = $authRow-&gt;getUser();
+        if (!$user-&gt;isActive()) {
+            if ($user-&gt;isUnconfirmed()) {
+                throw new AuthException(&quot;Please confirm your email first&quot;);
+            }
+            throw new AuthException(&quot;Your account is blocked&quot;);
+        }
+
+        return $authRow;
+    }
+
+    /**
+     * Checks if user's password is true or false
+     *
+     * @param  $email
+     * @param  $password
+     * @return bool
+     * @throws AuthException
+     */
+    public function checkCredentials($email, $password)
+    {
+        $authService = $this-&gt;createAuthService($email, $password);
+        $authResult = $authService-&gt;getAdapter()-&gt;authenticate();
+        if (false == $authResult-&gt;getCode()) {
+            throw new AuthException('Wrong login or password');
+        }
+        return true;
+    }
+
+    /**
+     * Creates authentication service and sets IdentityValue, Credential Value to its adapter
+     *
+     * @param  $email
+     * @param  $password
+     * @return array|object
+     */
+    public function createAuthService($email, $password)
+    {
+        $authService = $this-&gt;getServiceLocator()-&gt;get('Zend\Authentication\AuthenticationService');
+        $adapter = $authService-&gt;getAdapter();
+        $adapter-&gt;setIdentityValue($email);
+        $adapter-&gt;setCredentialValue($password);
+
+        return $authService;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

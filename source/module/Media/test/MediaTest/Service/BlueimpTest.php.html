@@ -1,0 +1,94 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/18/14
+ * Time: 5:08 PM
+ */
+namespace MediaTest\Service;
+
+use Zend\Http\Response;
+use Zend\Stdlib;
+use Zend\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
+
+/**
+ * Class BlueimpTest
+ * @package MediaTest\Service
+ */
+class BlueimpTest extends AbstractHttpControllerTestCase
+{
+    /**
+     * @var bool
+     */
+    protected $traceError=true;
+
+    /**
+     * @var \Media\Service\Blueimp
+     */
+    private $blueimpService;
+
+
+    /**
+     * Set up
+     */
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(include 'config/application.config.php');
+        $this-&gt;setTraceError(true);
+        parent::setUp();
+        $this-&gt;blueimpService = $this-&gt;getApplicationServiceLocator()-&gt;get('Media\Service\Blueimp');
+    }
+
+    /**
+     * Tests valid json when deleting file
+     */
+    public function testDeleteFileJson()
+    {
+        $this-&gt;assertJson(json_encode($this-&gt;blueimpService-&gt;deleteFileJson()));
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

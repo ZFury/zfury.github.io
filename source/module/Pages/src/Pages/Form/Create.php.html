@@ -1,0 +1,199 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Pages\Form;
+
+use Zend\Form\Form;
+use Zend\InputFilter\InputFilter;
+use Zend\InputFilter\InputFilterInterface;
+use Zend\I18n\Validator;
+use Zend\Validator\Db;
+use Zend\Validator\Exception;
+use Zend\Stdlib\Hydrator\ClassMethods;
+
+/**
+ * Class Create
+ * @package Pages\Form\Create
+ */
+class Create extends Form
+{
+    protected $inputFilter;
+    protected $serviceLocator;
+
+    /**
+     * @param int|null|string $name
+     * @param array $options
+     */
+    public function __construct($name, array $options)
+    {
+        $this-&gt;serviceLocator = $options['serviceLocator'];
+
+        $this-&gt;setHydrator(new ClassMethods(false));
+
+        parent::__construct($name);
+        $this-&gt;setAttribute('method', 'post');
+        $this-&gt;setAttribute('class', 'form-horizontal');
+        $this-&gt;setAttribute('role', 'form');
+        $this-&gt;setInputFilter(new Filter\Create());
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'id',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'hidden',
+                    'id' =&gt; 'id',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(),
+            )
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'title',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'text',
+                    'id' =&gt; 'title',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(
+                    'label' =&gt; 'Title',
+                    'label_attributes' =&gt; array(
+                        'class' =&gt; 'col-sm-2 control-label'
+                    ),
+                ),
+            )
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'alias',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'text',
+                    'id' =&gt; 'alias',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(
+                    'label' =&gt; 'Alias (link)',
+                    'label_attributes' =&gt; array(
+                        'class' =&gt; 'col-sm-2 control-label'
+                    ),
+                ),
+            )
+        );
+
+        $redactor = new \Fury\Form\Element\Redactor();
+        $redactor-&gt;setName('content')
+            -&gt;setAttributes(['id' =&gt; 'content',
+                'class' =&gt; 'form-control redactor-content'])
+            -&gt;setOptions([
+                'label' =&gt; 'Content',
+                'label_attributes' =&gt; [
+                    'class' =&gt; 'col-sm-2 control-label'
+                ]
+            ]);
+        $this-&gt;add($redactor);
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'keywords',
+                'type' =&gt; 'textarea',
+                'attributes' =&gt; array(
+                    'id' =&gt; 'keywords',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(
+                    'label' =&gt; 'Keywords',
+                    'label_attributes' =&gt; array(
+                        'class' =&gt; 'col-sm-2 control-label'
+                    ),
+                ),
+            )
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'description',
+                'type' =&gt; 'textarea',
+                'attributes' =&gt; array(
+                    'id' =&gt; 'description',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(
+                    'label' =&gt; 'Description',
+                    'label_attributes' =&gt; array(
+                        'class' =&gt; 'col-sm-2 control-label'
+                    ),
+                ),
+            )
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'authorId',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'hidden',
+                    'id' =&gt; 'authorId',
+                    'class' =&gt; 'form-control'
+                ),
+                'options' =&gt; array(),
+            )
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'submit',
+                'attributes' =&gt; array(
+                    'type' =&gt; 'submit',
+                    'value' =&gt; 'Create',
+                    'id' =&gt; 'submit',
+                    'class' =&gt; 'form-control col-sm-6 btn btn-success'
+                ),
+            )
+        );
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

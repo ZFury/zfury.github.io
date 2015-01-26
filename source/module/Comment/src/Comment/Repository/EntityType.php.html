@@ -1,0 +1,91 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Repository;
+
+use Doctrine\ORM\EntityRepository;
+
+class EntityType extends EntityRepository
+{
+    /**
+     * @return array
+     */
+    public function getEntities()
+    {
+        $entityManager = $this-&gt;getEntityManager();
+        $entities = array();
+        $meta = $entityManager-&gt;getMetadataFactory()-&gt;getAllMetadata();
+        foreach ($meta as $m) {
+            if ($m-&gt;getName() === &quot;Comment\\Entity\\EntityType&quot;) {
+                continue;
+            }
+            $entities[$m-&gt;getName()] = $m-&gt;getName();
+        }
+
+        return $entities;
+    }
+
+    /**
+     * @param $aliasEntity
+     * @return null|object
+     */
+    public function getEntityType($aliasEntity)
+    {
+        $entity = $this-&gt;findOneBy(['aliasEntity' =&gt; $aliasEntity]);
+        return $entity;
+    }
+
+    /**
+     * @param $entity
+     * @return null|object
+     */
+    public function getEntityTypeByEntity($entity)
+    {
+        $entities = $this-&gt;findOneBy(['entity' =&gt; $entity]);
+        return $entities;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

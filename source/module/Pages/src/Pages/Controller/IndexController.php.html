@@ -1,0 +1,85 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Zend Framework (http://framework.zend.com/)
+ *
+ * @link      http://github.com/zendframework/ZendSkeletonApplication for the canonical source repository
+ * @copyright Copyright (c) 2005-2014 Zend Technologies USA Inc. (http://www.zend.com)
+ * @license   http://framework.zend.com/license/new-bsd New BSD License
+ */
+
+namespace Pages\Controller;
+
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use Doctrine\ORM\EntityNotFoundException;
+
+/**
+ * Class IndexController
+ * @package Pages\Controller
+ */
+class IndexController extends AbstractActionController
+{
+    /**
+     * @return array|ViewModel
+     * @throws EntityNotFoundException
+     */
+    public function indexAction()
+    {
+        if (!$alias = $this-&gt;params()-&gt;fromRoute('alias')) {
+            //TODO: fix exception
+            throw new EntityNotFoundException('Bad Request');
+        }
+
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        if (!$page = $objectManager-&gt;getRepository('Pages\Entity\Pages')-&gt;findOneBy(['alias' =&gt; $alias])) {
+            throw new EntityNotFoundException('Entity not found');
+        }
+
+        return new ViewModel(array('page' =&gt; $page));
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

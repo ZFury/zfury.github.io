@@ -1,0 +1,159 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexfloppy
+ */
+
+namespace Pages\Controller;
+
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Fury\Test\Controller\ControllerTestCase;
+use Zend\Http\Response;
+use Zend\Stdlib;
+
+/**
+ * Class IndexControllerTest
+ * @package Pages\Controller
+ */
+class IndexControllerTest extends ControllerTestCase
+{
+    /**
+     * @var bool
+     */
+    protected $traceError = true;
+
+    /**
+     * @var array
+     */
+    protected $pageData = [
+        'title' =&gt; 'Title',
+        'alias' =&gt; 'default-page',
+        'content' =&gt; 'Hello and welcome
+            Lorem ipsum dolor sit amet, consectetur adipisicing elit,
+            sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+            Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+            Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+        'keywords' =&gt; 'keyword',
+        'description' =&gt; 'description',
+        'id' =&gt; '',
+        'userId' =&gt; '',
+        'submit' =&gt; 'Create'
+    ];
+
+    /**
+     *  migration up
+     */
+    public static function setUpBeforeClass()
+    {
+        exec('vendor/doctrine/doctrine-module/bin/doctrine-module orm:schema-tool:update --force');
+    }
+
+    /**
+     * migration down
+     */
+    public static function tearDownAfterClass()
+    {
+        exec('vendor/doctrine/doctrine-module/bin/doctrine-module orm:schema-tool:drop --force');
+    }
+
+    /**
+     * @throws \User\Exception\AuthException
+     */
+    protected function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include 'config/application.config.php'
+        );
+        parent::setUp();
+    }
+
+    /**
+     *  remove page
+     */
+    public function tearDown()
+    {
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $entity = $objectManager-&gt;getRepository('Pages\Entity\Pages')
+            -&gt;findOneBy(array('alias' =&gt; $this-&gt;pageData['alias']));
+        if ($entity) {
+            $objectManager-&gt;remove($entity);
+            $objectManager-&gt;flush();
+        }
+    }
+
+    /**
+     * test index action
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testIndexAction()
+    {
+        //create
+        $this-&gt;createEntity();
+
+        $editPath = '/' . $this-&gt;pageData['alias'] . '.html';
+        $this-&gt;dispatch($editPath);
+
+        $this-&gt;assertEquals(200, $this-&gt;getResponse()-&gt;getStatusCode());
+    }
+
+    /**
+     *  create entity
+     */
+    public function createEntity()
+    {
+        $entity = new \Pages\Entity\Pages();
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        $hydrator = new DoctrineHydrator($objectManager);
+        $hydrator-&gt;hydrate($this-&gt;pageData, $entity);
+        $objectManager-&gt;persist($entity);
+        $objectManager-&gt;flush();
+        $objectManager-&gt;getConnection()-&gt;commit();
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

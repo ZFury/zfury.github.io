@@ -1,0 +1,132 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 11/28/14
+ * Time: 1:36 PM
+ */
+
+namespace Application\Utility;
+
+use Zend\Session\Container;
+use Zend\Http\Response as HttpResponse;
+use Zend\Mvc\MvcEvent;
+use Zend\Stdlib\ResponseInterface as Response;
+use Zend\View\Model\ViewModel;
+use BjyAuthorize\Guard\Controller;
+use BjyAuthorize\Guard\Route;
+use Zend\Mvc\Application;
+use BjyAuthorize\Exception\UnAuthorizedException;
+
+class UnauthorizedStrategy extends \BjyAuthorize\View\UnauthorizedStrategy
+{
+    public function onDispatchError(MvcEvent $e)
+    {
+        $result = $e-&gt;getResult();
+        $response = $e-&gt;getResponse();
+
+        if ($result instanceof Response || ($response &amp;&amp; !$response instanceof HttpResponse)) {
+            return;
+        }
+
+        $viewVariables = array(
+            'error' =&gt; $e-&gt;getParam('error'),
+            'identity' =&gt; $e-&gt;getParam('identity'),
+        );
+
+        switch ($e-&gt;getError()) {
+            case Controller::ERROR:
+                $viewVariables['controller'] = $e-&gt;getParam('controller');
+                $viewVariables['action'] = $e-&gt;getParam('action');
+                $router = $e-&gt;getRouter();
+                if ($e-&gt;getParam('exception') instanceof UnAuthorizedException
+                    &amp;&amp; !$e-&gt;getApplication()-&gt;getServiceManager()-&gt;get('Zend\Authentication\AuthenticationService')
+                        -&gt;hasIdentity()
+                ) {
+                    $session = new Container('location');
+                    $session-&gt;location = $e-&gt;getRequest()-&gt;getUri();
+                    // get url to the login route
+                    $options['name'] = 'login';
+                    $url = $router-&gt;assemble(array(), $options);
+                    if (!$response) {
+                        $response = new HttpResponse();
+                        $e-&gt;setResponse($response);
+                    }
+                    $response-&gt;getHeaders()-&gt;addHeaderLine('Location', $url);
+                    $response-&gt;setStatusCode(302);
+                    return;
+                }
+                break;
+            case Route::ERROR:
+                $viewVariables['route'] = $e-&gt;getParam('route');
+                break;
+            case Application::ERROR_EXCEPTION:
+                if (!($e-&gt;getParam('exception') instanceof UnAuthorizedException)) {
+                    return;
+                }
+                $viewVariables['reason'] = $e-&gt;getParam('exception')-&gt;getMessage();
+                $viewVariables['error'] = 'error-unauthorized';
+                break;
+            default:
+                /*
+                     * do nothing if there is no error in the event or the error
+                     * does not match one of our predefined errors (we don't want
+                     * our 403 template to handle other types of errors)
+                     */
+                return;
+        }
+
+        $model = new ViewModel($viewVariables);
+        $response = $response ?: new HttpResponse();
+
+        $model-&gt;setTemplate($this-&gt;getTemplate());
+        $e-&gt;getViewModel()-&gt;addChild($model);
+        $response-&gt;setStatusCode(403);
+        $e-&gt;setResponse($response);
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

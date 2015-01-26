@@ -1,0 +1,282 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Service;
+
+use Zend\ServiceManager\ServiceManager;
+use Comment\Form;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Comment\Service;
+use Comment\Form\Filter;
+use Zend\Form\Annotation\AnnotationBuilder;
+use DoctrineModule\Validator;
+use Zend\Stdlib\Hydrator;
+use Comment\Entity;
+use User\Entity\User;
+
+class Comment
+{
+    /**
+     * @var null|\Zend\ServiceManager\ServiceManager
+     */
+    protected $serviceManager = null;
+
+    /**
+     * @return null|ServiceManager
+     */
+    public function getServiceLocator()
+    {
+        return $this-&gt;serviceManager;
+    }
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;serviceManager = $sm;
+    }
+
+    public function commentOwner($comment)
+    {
+        $identity = $this-&gt;getServiceLocator()-&gt;get('Zend\Authentication\AuthenticationService')-&gt;getIdentity();
+        if ($comment-&gt;getUserId() === $identity-&gt;getUserId() || $identity-&gt;getUser()-&gt;getRole() === User::ROLE_ADMIN) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @param $aliasEntity
+     * @return bool
+     * @throws \Exception
+     */
+    public function enabledComment($aliasEntity)
+    {
+        $objectManager = $this-&gt;serviceManager-&gt;get('Doctrine\ORM\EntityManager');
+        $entityType = $objectManager-&gt;getRepository('Comment\Entity\EntityType')-&gt;getEntityType($aliasEntity);
+        if (!$entityType) {
+            throw new \Exception('Unknown entity type');
+        }
+        if (!$entityType-&gt;getEnabledComment()) {
+            throw new \Exception('Comment on this entity can not be');
+        }
+
+        return true;
+    }
+
+    /**
+     * @param \Zend\Form\Form $form
+     * @param $data
+     * @return Entity\Comment|null
+     * @throws \Exception
+     */
+    public function add(\Zend\Form\Form $form, $data)
+    {
+        $serviceLocator = $this-&gt;getServiceLocator();
+        $entityManager = $serviceLocator-&gt;get('Doctrine\ORM\EntityManager');
+        $form-&gt;setData($data);
+        if ($form-&gt;isValid()) {
+            if ($this-&gt;enabledComment($data['entity'])) {
+                $data = $form-&gt;getData();
+                $serviceEntityType = $serviceLocator-&gt;get('Comment\Service\EntityType');
+                $entityType = $serviceEntityType-&gt;getEntity($data['entity'], $data['entityId']);
+                if (!$this-&gt;enabledComment($data['entity'])) {
+                    throw new \Exception('Prohibited add comments for this entity');
+                }
+
+                $comment = new Entity\Comment();
+                $comment-&gt;setEntityType($entityType);
+                $user = $serviceLocator-&gt;get('Zend\Authentication\AuthenticationService')-&gt;getIdentity()-&gt;getUser();
+                $comment-&gt;setUser($user);
+                $comment-&gt;setComment($data['comment']);
+
+                $entityManager-&gt;getConnection()-&gt;beginTransaction();
+                try {
+                    $hydrator = new DoctrineHydrator($entityManager);
+                    $hydrator-&gt;hydrate($data, $comment);
+                    $entityType-&gt;getComments()-&gt;add($comment);
+                    $entityManager-&gt;persist($comment);
+                    $entityManager-&gt;persist($entityType);
+                    $entityManager-&gt;flush();
+                    $entityManager-&gt;getConnection()-&gt;commit();
+
+                    return $comment;
+
+                } catch (\Exception $e) {
+                    $entityManager-&gt;getConnection()-&gt;rollback();
+                    throw $e;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param array $data
+     * @return array
+     * @throws \Exception
+     */
+    public function lisComments(array $data)
+    {
+        if (!isset($data['entity']) || !isset($data['entityId'])) {
+            throw new \Exception('Bad request');
+        }
+
+        $serviceEntityType = $this-&gt;getServiceLocator()-&gt;get('Comment\Service\EntityType');
+        $entityType = $serviceEntityType-&gt;getEntity($data['entity'], $data['entityId']);
+        $arrayComments = array();
+        if (!$entityType) {
+            return $arrayComments;
+        }
+
+        $objectManager = $this-&gt;serviceManager-&gt;get('Doctrine\ORM\EntityManager');
+        $commentRepository = $objectManager-&gt;getRepository('Comment\Entity\Comment');
+        $comments = $commentRepository-&gt;findBy(array('entityType' =&gt; $entityType, 'entityId' =&gt; $data['entityId']));
+
+        $identity = $this-&gt;getServiceLocator()-&gt;get('Zend\Authentication\AuthenticationService')-&gt;getIdentity();
+        if ($entityType-&gt;getVisibleComment() || $identity-&gt;getUser()-&gt;getRole() === User::ROLE_ADMIN) {
+            $entityComment = $objectManager-&gt;getRepository('Comment\Entity\EntityType')-&gt;getEntityType($data['entity']);
+            $enabledCommentByComment = $entityComment-&gt;getEnabledComment();
+
+            foreach ($comments as $comment) {
+                $arrayComments[$comment-&gt;getId()]['comment'] = $comment;
+                if ($entityComment-&gt;getVisibleComment()) {
+                    $entity = $objectManager-&gt;getRepository('Comment\Entity\EntityType')-&gt;getEntityType('comment');
+                    if ($entity) {
+                        $data = ['entity' =&gt; 'comment', 'entityId' =&gt; $comment-&gt;getId()];
+                        $arrayComments[$comment-&gt;getId()]['children'] = $this-&gt;lisComments($data);
+                    } else {
+                        $arrayComments[$comment-&gt;getId()]['children'] = array();
+                    }
+                }
+                $arrayComments[$comment-&gt;getId()]['enabledCommentByComment'] = $enabledCommentByComment;
+            }
+        }
+
+        return $arrayComments;
+    }
+
+    /**
+     * @param $id
+     * @return bool
+     * @throws \Exception
+     */
+    public function delete($id)
+    {
+        $objectManager = $this-&gt;serviceManager-&gt;get('Doctrine\ORM\EntityManager');
+        $comment = $objectManager-&gt;getRepository('\Comment\Entity\Comment')-&gt;findOneBy(['id' =&gt; $id]);
+
+        if (!$comment) {
+            throw new \Exception('Comment does not exist');
+        }
+        if (!$this-&gt;commentOwner($comment)) {
+            throw new \Exception('You do not have permission for this operation');
+        }
+        if (!$this-&gt;enabledComment($comment-&gt;getEntityType()-&gt;getAliasEntity())) {
+            throw new \Exception('Comment can not be deleted');
+        }
+
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        try {
+            $objectManager-&gt;remove($comment);
+            $objectManager-&gt;flush();
+            $objectManager-&gt;getConnection()-&gt;commit();
+        } catch (\Exception $e) {
+            $objectManager-&gt;getConnection()-&gt;rollback();
+            throw $e;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param \Zend\Form\Form $form
+     * @param Entity\Comment $comment
+     * @param $data
+     * @return Entity\Comment
+     * @throws \Exception
+     */
+    public function edit(\Zend\Form\Form $form, Entity\Comment $comment, $data)
+    {
+        if (!$this-&gt;commentOwner($comment)) {
+            throw new \Exception('You do not have permission for this operation');
+        }
+        if (!$this-&gt;enabledComment($comment-&gt;getEntityType()-&gt;getAliasEntity())) {
+            throw new \Exception('Comment can not be edited');
+        }
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $hydrator = new DoctrineHydrator($entityManager);
+        $hydrator-&gt;hydrate($data, $comment);
+        if ($form-&gt;isValid()) {
+            $entityManager-&gt;persist($comment);
+            $entityManager-&gt;flush();
+        }
+
+        return $comment;
+    }
+
+    /**
+     * @param Entity\Comment $comment
+     * @return \Zend\Form\Form
+     * @throws \Exception
+     */
+    public function createForm(Entity\Comment $comment = null)
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $builder = new AnnotationBuilder($entityManager);
+        $form = $builder-&gt;createForm(new Entity\Comment());
+        $form-&gt;setInputFilter(new Filter\CommentInputFilter($this-&gt;getServiceLocator()));
+        if ($comment) {
+            $form-&gt;setInputFilter(new Filter\CommentEditInputFilter($this-&gt;getServiceLocator()));
+            $form-&gt;setHydrator(new DoctrineHydrator($entityManager));
+            $form-&gt;bind($comment);
+        }
+
+        return $form;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,130 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/3/14
+ * Time: 4:52 PM
+ */
+
+namespace Fury\Media;
+
+use Doctrine\DBAL\Query\QueryBuilder;
+use Doctrine\ORM\Event\LifecycleEventArgs;
+use Doctrine\ORM\Query\Expr\Join;
+
+trait File
+{
+    public abstract function getEntityName();
+
+    public abstract function setEntityManager(LifecycleEventArgs $args);
+
+    public abstract function getId();
+
+    /**
+     * Returns an array of ids
+     *
+     * @return mixed
+     */
+    public function getImages()
+    {
+        $qb = $this-&gt;entityManager-&gt;createQueryBuilder();
+        $qb-&gt;select('f')
+            -&gt;from('\Media\Entity\File', 'f')
+            -&gt;innerJoin('\Media\Entity\ObjectFile', 'obf', Join::WITH, 'f.id = obf.fileId')
+            -&gt;where('f.type = :type')
+            -&gt;andWhere('obf.entityName = :name')
+            -&gt;andWhere('obf.objectId = :id')
+            -&gt;setParameter('type', \Media\Entity\File::IMAGE_FILETYPE)
+            -&gt;setParameter('name', $this-&gt;getEntityName())
+            -&gt;setParameter('id', $this-&gt;getId());
+
+        return $qb-&gt;getQuery()-&gt;getResult();
+    }
+
+    /**
+     * Returns an array of ids
+     *
+     * @return mixed
+     */
+    public function getAudios()
+    {
+        $qb = $this-&gt;entityManager-&gt;createQueryBuilder();
+        $qb-&gt;select('f')
+            -&gt;from('\Media\Entity\File', 'f')
+            -&gt;innerJoin('\Media\Entity\ObjectFile', 'obf', Join::WITH, 'f.id = obf.fileId')
+            -&gt;where('f.type = :type')
+            -&gt;andWhere('obf.entityName = :name')
+            -&gt;andWhere('obf.objectId = :id')
+            -&gt;setParameter('type', \Media\Entity\File::AUDIO_FILETYPE)
+            -&gt;setParameter('name', $this-&gt;getEntityName())
+            -&gt;setParameter('id', $this-&gt;getId());
+
+        return $qb-&gt;getQuery()-&gt;getResult();
+    }
+
+    /**
+     * Returns an array of ids
+     *
+     * @return mixed
+     */
+    public function getVideos()
+    {
+        $qb = $this-&gt;entityManager-&gt;createQueryBuilder();
+        $qb-&gt;select('f')
+            -&gt;from('\Media\Entity\File', 'f')
+            -&gt;innerJoin('\Media\Entity\ObjectFile', 'obf', Join::WITH, 'f.id = obf.fileId')
+            -&gt;where('f.type = :type')
+            -&gt;andWhere('obf.entityName = :name')
+            -&gt;andWhere('obf.objectId = :id')
+            -&gt;setParameter('type', \Media\Entity\File::VIDEO_FILETYPE)
+            -&gt;setParameter('name', $this-&gt;getEntityName())
+            -&gt;setParameter('id', $this-&gt;getId());
+
+        return $qb-&gt;getQuery()-&gt;getResult();
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

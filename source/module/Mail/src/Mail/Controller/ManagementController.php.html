@@ -1,0 +1,126 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Zend Framework (http://framework.zend.com/)
+ *
+ * @link      http://github.com/zendframework/ZendSkeletonApplication for the canonical source repository
+ * @copyright Copyright (c) 2005-2014 Zend Technologies USA Inc. (http://www.zend.com)
+ * @license   http://framework.zend.com/license/new-bsd New BSD License
+ */
+
+namespace Mail\Controller;
+
+use Mail\Grid\Grid;
+use Fury\Mvc\Controller\AbstractCrudController;
+use Zend\View\Model\ViewModel;
+use Mail\Form\Create;
+use Zend\Mvc\MvcEvent;
+use Doctrine\ORM\EntityNotFoundException;
+use Zend\Mvc\Controller\AbstractActionController;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+
+/**
+ * Class ManagementController
+ * @package Mail\Controller
+ */
+class ManagementController extends AbstractCrudController
+{
+    /**
+     * {@inheritdoc}
+     */
+    public function onDispatch(MvcEvent $e)
+    {
+        parent::onDispatch($e);
+    }
+
+    /**
+     * @return \Mail\Entity\Mail|mixed
+     */
+    protected function getEntity()
+    {
+        $entity = new \Mail\Entity\Mail();
+        return $entity;
+    }
+
+    /**
+     * @return Create|mixed
+     */
+    protected function getCreateForm()
+    {
+        return new \Mail\Form\Create('create', ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+    }
+
+    /**
+     * @return Create|mixed
+     */
+    protected function getEditForm()
+    {
+        $form = new \Mail\Form\Create('edit', ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+        $form-&gt;get('submit')-&gt;setValue('Save');
+        return $form;
+    }
+
+    /**
+     * @return array|ViewModel
+     */
+    public function indexAction()
+    {
+        $sm = $this-&gt;getServiceLocator();
+        $grid = new Grid($sm);
+        $viewModel = new ViewModel(['grid' =&gt; $grid]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+        return $viewModel;
+    }
+
+    /**
+     * @return array|ViewModel
+     */
+    public function viewAction()
+    {
+        return new ViewModel(array('page' =&gt; $this-&gt;loadEntity()));
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

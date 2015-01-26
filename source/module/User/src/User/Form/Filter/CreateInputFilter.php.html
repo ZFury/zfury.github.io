@@ -1,0 +1,247 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: hunter
+ * Date: 05.09.14
+ * Time: 11:25
+ */
+namespace User\Form\Filter;
+
+use Zend\InputFilter\InputFilter;
+use Zend\ServiceManager\ServiceManager;
+use DoctrineModule\Validator\NoObjectExists;
+use DoctrineModule\Validator\ObjectExists;
+
+class CreateInputFilter extends InputFilter
+{
+    /**
+     * @var  ServiceManager
+     */
+    protected $sm;
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;sm = $sm;
+        $this-&gt;password()-&gt;repeatPassword()-&gt;email();
+    }
+
+    /**
+     * @return $this
+     */
+    protected function password()
+    {
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'password',
+                'required' =&gt; true,
+                'validators' =&gt; array(
+                    array(
+                        'name' =&gt; 'StringLength',
+                        'options' =&gt; array(
+                            'min' =&gt; 3,
+                            'max' =&gt; 25,
+                        ),
+                    ),
+                ),
+                'filters' =&gt; array(
+                    array('name' =&gt; 'StripTags'),
+                    array('name' =&gt; 'StringTrim'),
+                ),
+            )
+        );
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function repeatPassword()
+    {
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'repeat-password',
+                'required' =&gt; true,
+                'validators' =&gt; array(
+                    array(
+                        'name' =&gt; 'StringLength',
+                        'options' =&gt; array(
+                            'min' =&gt; 3,
+                            'max' =&gt; 25,
+                        ),
+                    ),
+                    array(
+                        'name' =&gt; 'Identical',
+                        'options' =&gt; array(
+                            'token' =&gt; 'password'
+                        ),
+                    ),
+                ),
+                'filters' =&gt; array(
+                    array('name' =&gt; 'StripTags'),
+                    array('name' =&gt; 'StringTrim'),
+                ),
+            )
+        );
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function email()
+    {
+        $recordExistsValidator = new NoObjectExists(
+            array(
+                'object_repository' =&gt; $this-&gt;sm-&gt;get('Doctrine\ORM\EntityManager')-&gt;getRepository('User\Entity\User'),
+                'fields' =&gt; 'email'
+            )
+        );
+        $recordExistsValidator-&gt;setMessage(
+            'User with this email already exists',
+            NoObjectExists::ERROR_OBJECT_FOUND
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'email',
+                'required' =&gt; true,
+                'validators' =&gt; array(
+                    array(
+                        'name' =&gt; 'EmailAddress'
+                    ),
+                    $recordExistsValidator
+                ),
+                'filters' =&gt; array(
+                    array('name' =&gt; 'StripTags'),
+                    array('name' =&gt; 'StringTrim'),
+                ),
+            )
+        );
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function emailExist()
+    {
+        $recordExistsValidator = new ObjectExists(
+            array(
+                'object_repository' =&gt; $this-&gt;sm-&gt;get('Doctrine\ORM\EntityManager')-&gt;getRepository('User\Entity\User'),
+                'fields' =&gt; 'email'
+            )
+        );
+        $recordExistsValidator-&gt;setMessage(
+            'User with this email are not exists',
+            ObjectExists::ERROR_NO_OBJECT_FOUND
+        );
+
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'email',
+                'required' =&gt; true,
+                'validators' =&gt; array(
+                    array(
+                        'name' =&gt; 'EmailAddress'
+                    ),
+                    $recordExistsValidator
+                ),
+                'filters' =&gt; array(
+                    array('name' =&gt; 'StripTags'),
+                    array('name' =&gt; 'StringTrim'),
+                ),
+            )
+        );
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function username()
+    {
+        $recordExistsValidator = new NoObjectExists(
+            array(
+                'object_repository' =&gt; $this-&gt;sm-&gt;get('Doctrine\ORM\EntityManager')-&gt;getRepository('User\Entity\User'),
+                'fields' =&gt; 'username'
+            )
+        );
+        $recordExistsValidator-&gt;setMessage(
+            'User with this email already exists',
+            NoObjectExists::ERROR_OBJECT_FOUND
+        );
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'username',
+                'required' =&gt; true,
+                'validators' =&gt; array(
+                    $recordExistsValidator,
+                    array(
+                        'name' =&gt; 'StringLength',
+                        'options' =&gt; array(
+                            'min' =&gt; 3,
+                            'max' =&gt; 100,
+                        ),
+                    )
+                ),
+                'filters' =&gt; array(
+                    array('name' =&gt; 'StripTags'),
+                    array('name' =&gt; 'StringTrim'),
+                ),
+            )
+        );
+
+        return $this;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

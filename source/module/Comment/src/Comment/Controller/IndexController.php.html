@@ -1,0 +1,234 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Controller;
+
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use Comment\Form;
+use Comment\Service;
+use Comment\Form\Filter;
+use DoctrineModule\Validator;
+use Zend\Mvc\Controller\Plugin\FlashMessenger;
+use Zend;
+use Comment\Grid\Comment\Grid;
+use Zend\Mvc\Exception;
+
+class IndexController extends AbstractActionController
+{
+    /**
+     * @return array|ViewModel
+     * @throws \Exception
+     */
+    public function indexAction()
+    {
+        // for POST data
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $data = $this-&gt;getRequest()-&gt;getPost()-&gt;toArray();
+        }
+
+        // for GET (or query string) data
+        if ($this-&gt;getRequest()-&gt;getQuery()-&gt;entity &amp;&amp; $entityId = intval($this-&gt;getRequest()-&gt;getQuery()-&gt;id)) {
+            $data['entity'] = $this-&gt;getRequest()-&gt;getQuery()-&gt;entity;
+            $data['entityId'] = $this-&gt;getRequest()-&gt;getQuery()-&gt;id;
+        }
+
+        if (!isset($data['entity']) || !isset($data['entityId'])) {
+            throw new \Exception('Bad request');
+        }
+
+        $comments = $this-&gt;getServiceLocator()
+            -&gt;get('Comment\Service\Comment')
+            -&gt;lisComments($data);
+
+        $viewModel = new ViewModel(array('comments' =&gt; $comments));
+
+        if ($this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+            $viewModel-&gt;setTerminal(true);
+        }
+
+        return $viewModel;
+    }
+
+    /**
+     * @return array|ViewModel
+     * @throws \Exception
+     */
+    public function gridAction()
+    {
+        $this-&gt;layout('layout/dashboard/dashboard');
+        $sm = $this-&gt;getServiceLocator();
+        $grid = new Grid($sm);
+        $viewModel = new ViewModel(['grid' =&gt; $grid]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+        return $viewModel;
+    }
+
+    /**
+     * @return \Zend\Http\Response
+     * @throws \Exception
+     */
+    public function deleteAction()
+    {
+        if (!($id = $this-&gt;params()-&gt;fromRoute('id'))) {
+            throw new \Exception(&quot;No number comments that removed&quot;);
+        }
+
+        $result = $this-&gt;getServiceLocator()
+            -&gt;get('Comment\Service\Comment')
+            -&gt;delete($id);
+
+        if ($result) {
+            $flashMessenger = new FlashMessenger();
+            $flashMessenger-&gt;addSuccessMessage('Comment deleted');
+            if (!$this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+                return $this-&gt;redirect()-&gt;toUrl('/');
+            }
+        }
+    }
+
+    /**
+     * @return ViewModel
+     * @throws \Exception
+     */
+    public function editAction()
+    {
+        if (!$id = $this-&gt;params()-&gt;fromRoute('id')) {
+            throw new \Exception('Bad request');
+        }
+
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $comment = $objectManager-&gt;getRepository('\Comment\Entity\Comment')-&gt;findOneBy(['id' =&gt; $id]);
+
+        if (!$comment) {
+            throw new \Exception(&quot;No number comments that edited&quot;);
+        }
+
+        $form = $this-&gt;getServiceLocator()
+            -&gt;get('Comment\Service\Comment')-&gt;createForm($comment);
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $data = $this-&gt;getRequest()-&gt;getPost();
+            $data = $data-&gt;toArray();
+
+            $commentEdited = $this-&gt;getServiceLocator()
+                -&gt;get('Comment\Service\Comment')
+                -&gt;edit($form, $comment, $data);
+
+            $flashMessenger = new FlashMessenger();
+            if ($commentEdited) {
+                $flashMessenger-&gt;addSuccessMessage('Comment edited');
+                if (!$this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+                    return $this-&gt;redirect()-&gt;toUrl('/');
+                }
+
+                return;
+            } else {
+                $flashMessenger-&gt;addErrorMessage('Comment is not changed');
+            }
+        }
+        $viewModel = new ViewModel([
+            'form' =&gt; $form,
+            'title' =&gt; 'Add comment',
+            'ajax' =&gt; $this-&gt;getRequest()-&gt;isXmlHttpRequest()
+        ]);
+        if ($this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+            $viewModel-&gt;setTerminal(true);
+        }
+
+        return $viewModel;
+    }
+
+    /**
+     * @return \Zend\Http\Response|ViewModel
+     * @throws \Exception
+     */
+    public function addAction()
+    {
+        $form = $this-&gt;getServiceLocator()
+            -&gt;get('Comment\Service\Comment')-&gt;createForm();
+
+        // for POST data
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $data = $this-&gt;getRequest()-&gt;getPost();
+
+            // for GET (or query string) data
+            if ($this-&gt;getRequest()-&gt;getQuery()-&gt;entity &amp;&amp; $entityId = intval($this-&gt;getRequest()-&gt;getQuery()-&gt;id)) {
+                $data-&gt;set('entity', $this-&gt;getRequest()-&gt;getQuery()-&gt;entity);
+                $data-&gt;set('entityId', $this-&gt;getRequest()-&gt;getQuery()-&gt;id);
+            }
+
+            if (!isset($data['entity']) || !isset($data['entityId'])) {
+                throw new \Exception('Bad request');
+            }
+            $comment = $this-&gt;getServiceLocator()
+                -&gt;get('Comment\Service\Comment')
+                -&gt;add($form, $data);
+
+            $flashMessenger = new FlashMessenger();
+            if ($comment) {
+                $flashMessenger-&gt;addSuccessMessage('Comment created');
+                if (!$this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+                    return $this-&gt;redirect()-&gt;toUrl(&quot;/&quot;);
+                }
+                return;
+            } else {
+                $flashMessenger-&gt;addErrorMessage('Comment is not created');
+            }
+        }
+        $viewModel = new ViewModel([
+            'form' =&gt; $form,
+            'title' =&gt; 'Add comment',
+            'ajax' =&gt; $this-&gt;getRequest()-&gt;isXmlHttpRequest()
+        ]);
+        if ($this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+            $viewModel-&gt;setTerminal(true);
+        }
+
+        return $viewModel;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

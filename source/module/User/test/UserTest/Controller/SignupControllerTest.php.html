@@ -1,0 +1,237 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: hunter
+ * Date: 22.05.14
+ * Time: 16:43
+ */
+
+namespace UserTest\Controller;
+
+use SebastianBergmann\Exporter\Exception;
+use User\Form\SetNewPasswordForm;
+use User\Form\SignupForm;
+use Zend\Mvc\Controller\ControllerManager;
+use Zend\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Fury\Test\Controller\ControllerTestCase;
+
+class SignupControllerTest extends ControllerTestCase
+{
+    /**
+     * @var array
+     */
+    protected $userData = [
+        'name' =&gt; 'testUser',
+        'email' =&gt; 'testUser@nix.com',
+        'password' =&gt; '123456',
+        'repeat-password' =&gt; '123456',
+        'role' =&gt; 'user',
+        'status' =&gt; 'active',
+        'confirm' =&gt; '09310bf5aa26b8860d1705e361d1ba56'
+    ];
+
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include './config/application.config.php'
+        );
+
+        $this-&gt;setTraceError(true);
+        parent::setUp();
+    }
+
+    /**
+     * Set up database
+     */
+    public static function setUpBeforeClass()
+    {
+        exec('./vendor/bin/doctrine-module orm:schema-tool:update --force');
+    }
+
+    /**
+     * Tear down database
+     */
+    public static function tearDownAfterClass()
+    {
+        exec('./vendor/bin/doctrine-module orm:schema-tool:drop --force');
+    }
+
+    /**
+     *  forgot-password action test
+     */
+    public function testForgotPasswordAction()
+    {
+        $mailTransportMock = $this-&gt;getMockBuilder('Zend\Mail\Transport\Smtp')
+            -&gt;disableOriginalConstructor()
+            -&gt;getMock();
+        $mailTransportMock-&gt;expects($this-&gt;once())
+            -&gt;method('send')
+            -&gt;will($this-&gt;returnValue(null));
+        $mailMessageMock = $this-&gt;getMockBuilder('Zend\Mail\Message')
+            -&gt;disableOriginalConstructor()
+            -&gt;getMock();
+        $mailMessageMock-&gt;expects($this-&gt;once())
+            -&gt;method('addTo')
+            -&gt;will($this-&gt;returnSelf());
+        $mailMessageMock-&gt;expects($this-&gt;once())
+            -&gt;method('setSubject')
+            -&gt;will($this-&gt;returnSelf());
+        $mailMessageMock-&gt;expects($this-&gt;once())
+            -&gt;method('setBody')
+            -&gt;will($this-&gt;returnSelf());
+
+        $form = new  SetNewPasswordForm(
+            'forgot-password',
+            ['serviceLocator' =&gt; $this-&gt;getApplicationServiceLocator()]
+        );
+        $data = array(
+            'email' =&gt; $this-&gt;userData['email'],
+            'security' =&gt; $form-&gt;get('security')-&gt;getValue()
+        );
+
+        $this-&gt;getApplicationServiceLocator()-&gt;setAllowOverride(true);
+        $this-&gt;getApplicationServiceLocator()-&gt;setService('mail.transport', $mailTransportMock);
+        $this-&gt;getApplicationServiceLocator()-&gt;setService('mail.message', $mailMessageMock);
+
+        $this-&gt;createUserWithHash($this-&gt;userData);
+
+        $this-&gt;dispatch('/user/signup/forgot-password', 'POST', $data);
+        $this-&gt;assertEquals(302, $this-&gt;getResponse()-&gt;getStatusCode());
+        $this-&gt;assertRedirectTo('/');
+    }
+
+    /**
+     *  index action access test
+     */
+    public function testIndexActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/user/signup/index');
+        $this-&gt;assertResponseStatusCode(200);
+        $this-&gt;assertModuleName('User');
+        $this-&gt;assertControllerName('User\Controller\Signup');
+        $this-&gt;assertControllerClass('SignupController');
+        $this-&gt;assertMatchedRouteName('user/default');
+    }
+
+    /**
+     *  signup index action test
+     */
+    public function testIndex()
+    {
+        $mailTransportMock = $this-&gt;getMockBuilder('Zend\Mail\Transport\Smtp')
+            -&gt;disableOriginalConstructor()
+            -&gt;getMock();
+        $mailTransportMock-&gt;expects($this-&gt;once())
+            -&gt;method('send')
+            -&gt;will($this-&gt;returnValue(null));
+        $mailMessageMock = $this-&gt;getMockBuilder('Zend\Mail\Message')
+            -&gt;disableOriginalConstructor()
+            -&gt;getMock();
+        $mailMessageMock-&gt;expects($this-&gt;once())
+            -&gt;method('addTo')
+            -&gt;will($this-&gt;returnSelf());
+        $mailMessageMock-&gt;expects($this-&gt;once())
+            -&gt;method('setSubject')
+            -&gt;will($this-&gt;returnSelf());
+        $mailMessageMock-&gt;expects($this-&gt;once())
+            -&gt;method('setBody')
+            -&gt;will($this-&gt;returnSelf());
+
+        $this-&gt;getApplicationServiceLocator()-&gt;setAllowOverride(true);
+        $this-&gt;getApplicationServiceLocator()-&gt;setService('mail.transport', $mailTransportMock);
+        $this-&gt;getApplicationServiceLocator()-&gt;setService('mail.message', $mailMessageMock);
+
+        $form = new  SignupForm('create-user', ['serviceLocator' =&gt; $this-&gt;getApplicationServiceLocator()]);
+        $data = [
+            'security' =&gt; $form-&gt;get('security')-&gt;getValue(),
+            'email' =&gt; 'aaaaaa@gmail.com',
+            'password' =&gt; '123456',
+            'repeat-password' =&gt; '123456',
+        ];
+        $this-&gt;dispatch('/user/signup/index', 'POST', $data);
+        $this-&gt;assertResponseStatusCode(302);
+        $this-&gt;assertRedirectTo('/');
+    }
+
+    /**
+     *  confirm action test
+     */
+    public function testConfirmAction()
+    {
+        $user = $this-&gt;createUser(null, \User\Entity\User::ROLE_USER);
+        $this-&gt;dispatch('/user/signup/confirm/' . $user-&gt;getConfirm());
+        $this-&gt;assertResponseStatusCode(302);
+        $this-&gt;assertRedirectTo('/');
+    }
+
+    /**
+     * @param array $userData
+     * @return \User\Entity\User
+     */
+    public function createUserWithHash(array $userData)
+    {
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $user = new \User\Entity\User();
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        $hydrator = new DoctrineHydrator($objectManager);
+        $hydrator-&gt;hydrate($userData, $user);
+        $user-&gt;setDisplayName($user-&gt;getEmail());
+
+        $objectManager-&gt;persist($user);
+        $objectManager-&gt;flush();
+
+        /** @var $authService \User\Service\Auth */
+        $authService = $this-&gt;getApplicationServiceLocator()-&gt;get('User\Service\Auth');
+        $authService-&gt;generateEquals($user, $userData['password']);
+
+        $objectManager-&gt;getConnection()-&gt;commit();
+
+        return $user;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,148 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/5/14
+ * Time: 11:15 AM
+ */
+
+namespace MediaTest\Service;
+
+use Zend\Http\Response;
+use Zend\Stdlib;
+use Zend\Test\PHPUnit\Controller\AbstractHttpControllerTestCase;
+
+/**
+ * Class AudioTest
+ * @package MediaTest\Service
+ */
+class AudioTest extends AbstractHttpControllerTestCase
+{
+    /**
+     * @var bool
+     */
+    protected $traceError = true;
+
+    protected $audioEntityData = [
+        'extension' =&gt; 'mp3',
+        'type' =&gt; 'audio',
+    ];
+    protected $audioId = null; //it will be converted to 000
+    const DIRECTORY_NAME = 'audio';
+    private $oldLocation = null;
+    private $newLocation = null;
+
+    /**
+     * @var \Media\Service\Audio
+     */
+    private $audioService;
+
+    /**
+     * Set up
+     */
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include 'config/application.config.php'
+        );
+        $this-&gt;setTraceError(true);
+        parent::setUp();
+        $this-&gt;oldLocation = __DIR__ . '/../../testFiles/test.aac';
+        $this-&gt;newLocation = __DIR__ . '/../../testFiles/test.mp3';
+        $this-&gt;audioService = $this-&gt;getApplicationServiceLocator()-&gt;get('Media\Service\Audio');
+    }
+
+    /**
+     * Tests path generator from root
+     * @throws \Exception
+     */
+    public function testAudioPath()
+    {
+        $audioPath = $this-&gt;audioService-&gt;audioPath($this-&gt;audioId, $this-&gt;audioEntityData['extension']);
+        $this-&gt;assertRegExp(
+            '/[a-zA-z]*\/[a-zA-z]*\/' .
+            self::DIRECTORY_NAME .
+            '*\/[0-9]*\/[0-9]*\/[0-9]*\/[0-9]*\.[a-zA-Z]*/',
+            $audioPath
+        );
+    }
+
+    /**
+     * Tests path generator from public
+     * @throws \Exception
+     */
+    public function testAudioPathOnlyPath()
+    {
+        $audioPath = $this-&gt;audioService
+            -&gt;audioPath($this-&gt;audioId, $this-&gt;audioEntityData['extension'], \Media\Service\File::FROM_PUBLIC);
+        $this-&gt;assertRegExp(
+            '/[a-zA-z]*\/' .
+            self::DIRECTORY_NAME .
+            '*\/[0-9]*\/[0-9]*\/[0-9]*\/[0-9]*\.[a-zA-Z]*/',
+            $audioPath
+        );
+    }
+
+    /**
+     * Tests path generator from public
+     * @throws \Exception
+     */
+    public function testPrepareDir()
+    {
+        $audioPath = $this-&gt;audioService-&gt;audioPath($this-&gt;audioId, $this-&gt;audioEntityData['extension']);
+        $this-&gt;assertTrue($this-&gt;audioService-&gt;prepareDir($audioPath));
+    }
+
+    /**
+     * Tests audio conversion to mp3
+     */
+    public function testAudioConversion()
+    {
+        $this-&gt;assertTrue($this-&gt;audioService-&gt;executeConversion($this-&gt;oldLocation, $this-&gt;newLocation));
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

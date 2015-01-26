@@ -1,0 +1,77 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Test\Repository;
+
+use Doctrine\ORM\EntityRepository;
+
+class Test extends EntityRepository
+{
+    /**
+     * Return count search users
+     *
+     * @return int
+     *
+     * Created by Maxim Mandryka maxim.mandryka@nixsolutions.com
+     */
+    public function countSearchTests($searchString)
+    {
+        $qb = $this-&gt;getEntityManager()-&gt;createQueryBuilder();
+        $select = $qb-&gt;select('count(test.id)')
+            -&gt;from('\Test\Entity\Test', 'test');
+        if (!empty($searchString)) {
+            $select-&gt;where(
+                $qb-&gt;expr()-&gt;orX()
+                    -&gt;add($qb-&gt;expr()-&gt;like('test.email', $qb-&gt;expr()-&gt;literal('%' . $searchString . '%')))
+            );
+        }
+
+        $count = $select-&gt;getQuery()-&gt;getSingleScalarResult();
+
+        return $count;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

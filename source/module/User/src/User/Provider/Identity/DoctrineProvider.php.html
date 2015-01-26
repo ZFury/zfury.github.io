@@ -1,0 +1,153 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * BjyAuthorize Module (https://github.com/bjyoungblood/BjyAuthorize)
+ *
+ * @link    https://github.com/bjyoungblood/BjyAuthorize for the canonical source repository
+ * @license http://framework.zend.com/license/new-bsd New BSD License
+ */
+
+namespace User\Provider\Identity;
+
+use BjyAuthorize\Provider\Identity;
+use BjyAuthorize\Exception\InvalidRoleException;
+use Doctrine\ORM\EntityManager;
+use Zend\Authentication\AuthenticationService;
+use Zend\ServiceManager\ServiceManager;
+use Zend\Permissions\Acl\Role\RoleInterface;
+
+/**
+ * Identity provider based on {@see \Zend\Db\Adapter\Adapter}
+ *
+ * @author Ben Youngblood &lt;bx.youngblood@gmail.com&gt;
+ */
+class DoctrineProvider implements \BjyAuthorize\Provider\Identity\ProviderInterface
+{
+    /**
+     * @var AuthenticationService
+     */
+    protected $authService;
+
+    /**
+     * @var EntityManager
+     */
+    protected $entityManager;
+
+    /**
+     * @var ServiceManager
+     */
+    protected $serviceManager;
+
+    /**
+     * @var string|\Zend\Permissions\Acl\Role\RoleInterface
+     */
+    protected $defaultRole;
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function setServiceLocator(ServiceManager $sm)
+    {
+        $this-&gt;serviceManager = $sm;
+    }
+
+    /**
+     * @return ServiceManager
+     */
+    public function getServiceLocator()
+    {
+        return $this-&gt;serviceManager;
+    }
+
+    /**
+     * @param EntityManager $entityManager
+     * @param AuthenticationService $authService
+     */
+    public function __construct(EntityManager $entityManager, AuthenticationService $authService)
+    {
+        $this-&gt;entityManager = $entityManager;
+        $this-&gt;authService = $authService;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function getIdentityRoles()
+    {
+        //if user was manually deleted from storage we should clear identity
+        if ($this-&gt;authService-&gt;hasIdentity() &amp;&amp; !$this-&gt;authService-&gt;getIdentity()) {
+            $this-&gt;authService-&gt;clearIdentity();
+        }
+        if (!$this-&gt;authService-&gt;hasIdentity()) {
+            return array($this-&gt;getDefaultRole());
+        }
+
+        return $this-&gt;authService-&gt;getIdentity()-&gt;getUser()-&gt;getRole();
+    }
+
+    /**
+     * @return string|\Zend\Permissions\Acl\Role\RoleInterface
+     */
+    public function getDefaultRole()
+    {
+        return $this-&gt;defaultRole;
+    }
+
+    /**
+     * @param string|\Zend\Permissions\Acl\Role\RoleInterface $defaultRole
+     *
+     * @throws \BjyAuthorize\Exception\InvalidRoleException
+     */
+    public function setDefaultRole($defaultRole)
+    {
+        if (!($defaultRole instanceof RoleInterface || is_string($defaultRole))) {
+            throw InvalidRoleException::invalidRoleInstance($defaultRole);
+        }
+
+        $this-&gt;defaultRole = $defaultRole;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

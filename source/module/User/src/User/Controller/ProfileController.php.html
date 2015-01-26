@@ -1,0 +1,156 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: hunter
+ * Date: 25.09.14
+ * Time: 11:25
+ */
+
+namespace User\Controller;
+
+use User\Exception\AuthException;
+use User\Form\ChangePasswordAndEmailForm;
+use User\Form\ChangePasswordForm;
+use User\Form\Filter\ChangePasswordInputFilter;
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use Zend\Mvc\Controller\Plugin\FlashMessenger;
+
+class ProfileController extends AbstractActionController
+{
+    /**
+     * @return array|ViewModel
+     */
+    public function indexAction()
+    {
+        return new ViewModel([]);
+    }
+
+    /**
+     *
+     */
+    public function checkIfFollowing()
+    {
+        $httpClientOptions = array(
+            'adapter' =&gt; 'Zend\Http\Client\Adapter\Curl',
+            'curloptions' =&gt; array(
+                CURLOPT_SSL_VERIFYHOST =&gt; false,
+                CURLOPT_SSL_VERIFYPEER =&gt; false
+            ),
+        );
+        $config = array(
+            'access_token' =&gt; array(
+                'token' =&gt; '228442924-P7AaZphsNeEkSOrVOL7UlqHNgeLQ6SqxnIQLNOVy',
+                'secret' =&gt; '8jXYDcJ8O6p3Z5X51WHfbSZqm8y7YPU54xFzdPPjfv8kx',
+            ),
+            'oauth_options' =&gt; array(
+                'consumerKey' =&gt; 'oh906btm1R0oTSPN5cBFHsRus',
+                'consumerSecret' =&gt; 'dX9JBVIr5suWs09v9kWX0nbKDPfKS4nGEh8wWHXnT9LxDtCsY0',
+            ),
+            'httpClientOptions' =&gt; $httpClientOptions
+        );
+        $twitter = new Twitter($config);
+        $response = $twitter-&gt;account-&gt;verifyCredentials();
+        if (!$response-&gt;isSuccess()) {
+            die('Something is wrong with my credentials!');
+        }
+        $twitter-&gt;usersSearch('twitter')-&gt;toValue()[0]-&gt;following;
+    }
+
+    /**
+     * @return \Zend\Http\Response|ViewModel
+     */
+    public function changePasswordAction()
+    {
+        $currentPasswordElement = false;
+        if ($this-&gt;identity()-&gt;getUser()-&gt;getEmail()) {
+            $form = new ChangePasswordForm(null, ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+            $currentPasswordElement = true;
+        } else {
+            $form = new ChangePasswordAndEmailForm(null, ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+        }
+
+        $request = $this-&gt;getRequest();
+        if ($request-&gt;isPost()) {
+            $form-&gt;setData($request-&gt;getPost());
+            if ($form-&gt;isValid()) {
+                $flashMessenger = new FlashMessenger();
+                /** @var \User\Service\Auth $userAuth */
+                $userAuth = $this-&gt;getServiceLocator()-&gt;get('\User\Service\Auth');
+                try {
+                    $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+                    /** @var \User\Entity\User $user */
+                    $user = $objectManager
+                        -&gt;getRepository('User\Entity\User')
+                        -&gt;find($this-&gt;identity()-&gt;getUser()-&gt;getId());
+
+                    if ($this-&gt;identity()-&gt;getUser()-&gt;getEmail()) {
+                        $userAuth-&gt;checkCredentials(
+                            $this-&gt;identity()-&gt;getUser()-&gt;getEmail(),
+                            $form-&gt;getData()['currentPassword']
+                        );
+                    } else {
+                        $user-&gt;setEmail($form-&gt;getData()['email']);
+                    }
+
+                    $objectManager-&gt;persist($user);
+                    $objectManager-&gt;flush();
+
+                    $userAuth-&gt;generateEquals($user, $form-&gt;getData()['password']);
+                    $flashMessenger-&gt;addSuccessMessage(&quot;You have successfully changed your password!&quot;);
+
+                    return $this-&gt;redirect()-&gt;toRoute('home');
+                } catch (AuthException $exception) {
+                    $flashMessenger-&gt;addErrorMessage($exception-&gt;getMessage());
+                }
+            }
+        }
+
+        return new ViewModel(['form' =&gt; $form, 'currentPasswordElement' =&gt; $currentPasswordElement]);
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

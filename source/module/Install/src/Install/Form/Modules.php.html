@@ -1,0 +1,119 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/20/14
+ * Time: 10:26 AM
+ */
+
+namespace Install\Form;
+
+use Zend\Form\Form;
+
+class Modules extends Form
+{
+    public function __construct()
+    {
+        parent::__construct('modules');
+
+        $this-&gt;add([
+            'type' =&gt; 'Zend\Form\Element\Checkbox',
+            'name' =&gt; 'Categories',
+            'options' =&gt; [
+                'label' =&gt; 'Categories',
+                'use_hidden_element' =&gt;true,
+                'checked_value' =&gt; 'good',
+                'unchecked_value' =&gt; 'bad'
+            ],
+        ]);
+
+        $this-&gt;add([
+            'type' =&gt; 'Zend\Form\Element\Checkbox',
+            'name' =&gt; 'Comment',
+            'options' =&gt; [
+                'label' =&gt; 'Comments',
+                'use_hidden_element' =&gt;true,
+                'unchecked_value' =&gt; 'bad',
+                'checked_value' =&gt; 'good'
+            ],
+        ]);
+
+        $this-&gt;add([
+            'type' =&gt; 'Zend\Form\Element\Checkbox',
+            'name' =&gt; 'Mail',
+            'options' =&gt; [
+                'label' =&gt; 'Mail',
+                'use_hidden_element' =&gt;true,
+                'checked_value' =&gt; 'good',
+                'unchecked_value' =&gt; 'bad'
+            ],
+        ]);
+
+        $this-&gt;add([
+            'type' =&gt; 'Zend\Form\Element\Checkbox',
+            'name' =&gt; 'Options',
+            'options' =&gt; [
+                'label' =&gt; 'Options',
+                'use_hidden_element' =&gt;true,
+                'checked_value' =&gt; 'good',
+                'unchecked_value' =&gt; 'bad'
+            ],
+        ]);
+
+        $this-&gt;add([
+            'type' =&gt; 'Zend\Form\Element\Checkbox',
+            'name' =&gt; 'Pages',
+            'options' =&gt; [
+                'label' =&gt; 'Pages',
+                'use_hidden_element' =&gt;true,
+                'checked_value' =&gt; 'good',
+                'unchecked_value' =&gt; 'bad'
+            ],
+        ]);
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

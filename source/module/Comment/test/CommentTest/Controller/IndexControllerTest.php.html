@@ -1,0 +1,351 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace CommenTest\Controller;
+
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Zend\Http\Response;
+use Zend\Stdlib;
+use Fury\Test\Controller\ControllerTestCase;
+use \Comment\Entity\EntityType;
+use \Comment\Entity\Comment;
+
+/**
+ * Class ManagementControllerTest
+ * @package CommentTest\Controller
+ */
+class IndexControllerTest extends ControllerTestCase
+{
+    /**
+     * @var \Comment\Service\Comment
+     */
+    private $commentService;
+
+    /**
+     * @var bool
+     */
+    protected $traceError = true;
+
+    protected $user;
+
+    protected $entityType;
+
+    protected $anotherUser = [
+        'name' =&gt; 'Admin1',
+        'email' =&gt; 'admin1@nix.com',
+        'password' =&gt; '123456'
+    ];
+
+    /**
+     *  Migration up
+     */
+    public static function setUpBeforeClass()
+    {
+        exec('vendor/bin/doctrine-module orm:schema-tool:update --force');
+    }
+
+    /**
+     * Migration down
+     */
+    public static function tearDownAfterClass()
+    {
+        //exec('vendor/bin/doctrine-module orm:schema-tool:drop --force');
+    }
+
+    /**
+     * Set up
+     */
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include 'config/application.config.php'
+        );
+        $this-&gt;setTraceError(true);
+        parent::setUp();
+
+        $this-&gt;setupAdmin();
+
+        $this-&gt;user = $this-&gt;createUser($this-&gt;anotherUser);
+        $entityType = array(
+            'aliasEntity' =&gt;'user',
+            'entity' =&gt;'User\Entity\User',
+            'enabledComment' =&gt; true,
+            'visibleComment' =&gt; true,
+            'description' =&gt;'description',
+        );
+        $this-&gt;entityType = $this-&gt;createEntityType($entityType);
+        $this-&gt;commentService = $this-&gt;getApplicationServiceLocator()-&gt;get('Comment\Service\Comment');
+    }
+
+    public function tearDown()
+    {
+        $this-&gt;removeUser($this-&gt;anotherUser);
+        $this-&gt;dropComments();
+        $this-&gt;removeEntityType($this-&gt;entityType);
+    }
+
+    public function testAddActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/comment/index/add');
+        $this-&gt;assertResponseStatusCode(200);
+
+        $this-&gt;assertModuleName('comment');
+        $this-&gt;assertControllerName('Comment\Controller\Index');
+        $this-&gt;assertControllerClass('IndexController');
+        $this-&gt;assertMatchedRouteName('comment/default');
+    }
+
+    public function testAddActionRedirectsAfterValidPost()
+    {
+
+        $postData = array(
+            'comment' =&gt; &quot;test comment&quot;,
+            'entity' =&gt; $this-&gt;entityType-&gt;getAliasEntity(),
+            'entityId' =&gt; $this-&gt;user-&gt;getId(),
+        );
+        $this-&gt;dispatch('/comment/index/add', 'POST', $postData);
+        $this-&gt;assertResponseStatusCode(302);
+    }
+
+    public function testAddActionRedirectsAfterInvalidPost()
+    {
+        $postData = array(
+            'comment' =&gt; &quot;test comment&quot;,
+        );
+        $this-&gt;dispatch('/comment/index/add', 'POST', $postData);
+        $this-&gt;assertResponseStatusCode(500);
+    }
+
+    public function testAddActionNoEnabledEntity()
+    {
+        $form = $this-&gt;commentService-&gt;createForm();
+        $postData = array(
+            'comment' =&gt; &quot;test comment&quot;,
+            'entity' =&gt; $this-&gt;entityType-&gt;getAliasEntity(),
+            'entityId' =&gt; $this-&gt;user-&gt;getId(),
+        );
+        $this-&gt;entityType-&gt;setEnabledComment(0);
+        $this-&gt;setExpectedException('Exception');
+        $this-&gt;commentService-&gt;add($form, $postData);
+    }
+
+    public function testAddInvalidEntity()
+    {
+        $form = $this-&gt;commentService-&gt;createForm();
+        $postData = array(
+            'comment' =&gt; &quot;test comment&quot;,
+            'entity' =&gt; &quot;some&quot;,
+            'entityId' =&gt; $this-&gt;user-&gt;getId(),
+        );
+        $this-&gt;setExpectedException('Exception');
+        $this-&gt;commentService-&gt;add($form, $postData);
+    }
+
+    public function testEditActionCanBeAccessed()
+    {
+        $comment = $this-&gt;createComment('testComment');
+
+        $this-&gt;dispatch('/comment/index/edit/'.$comment-&gt;getId());
+        $this-&gt;assertResponseStatusCode(200);
+
+        $this-&gt;assertModuleName('Comment');
+        $this-&gt;assertControllerName('Comment\Controller\Index');
+        $this-&gt;assertControllerClass('IndexController');
+        $this-&gt;assertMatchedRouteName('comment/default');
+    }
+
+    public function testEditActionRedirectsAfterValidPost()
+    {
+        $comment = $this-&gt;createComment('Comment for edited');
+
+        $postData = array(
+            'comment' =&gt; 'edited'
+        );
+        $this-&gt;dispatch('/comment/index/edit/' . $comment-&gt;getId(), 'POST', $postData);
+        $this-&gt;assertResponseStatusCode(302);
+    }
+
+    public function testEditActionNoExistComment()
+    {
+        $postData = array(
+            'comment' =&gt; 'edited'
+        );
+        $this-&gt;dispatch('/comment/index/edit/1', 'POST', $postData);
+        $this-&gt;assertResponseStatusCode(500);
+    }
+
+    public function testEditActionNoPermission()
+    {
+        $form = $this-&gt;commentService-&gt;createForm();
+        $comment = $this-&gt;createComment('Comment for edited');
+        $this-&gt;setupUser();
+        $postData = array(
+            'comment' =&gt; 'edited'
+        );
+        $this-&gt;setExpectedException('Exception');
+        $this-&gt;commentService-&gt;edit($form, $comment, $postData);
+    }
+
+    public function testDeleteActionCanBeAccessed()
+    {
+        $comment = $this-&gt;createComment('Comment for deleted');
+        $this-&gt;dispatch(&quot;/comment/index/delete/&quot;.$comment-&gt;getId());
+        $this-&gt;assertResponseStatusCode(302);
+
+        $this-&gt;assertModuleName('comment');
+        $this-&gt;assertControllerName('Comment\Controller\Index');
+        $this-&gt;assertControllerClass('IndexController');
+        $this-&gt;assertMatchedRouteName('comment/default');
+    }
+
+    public function testDeleteActionNoPermission()
+    {
+        $comment = $this-&gt;createComment('Comment for deleted');
+        $this-&gt;setupUser();
+        $this-&gt;setExpectedException('Exception');
+        $this-&gt;commentService-&gt;delete($comment-&gt;getId());
+    }
+
+    public function testDeleteActionNoExistComment()
+    {
+        $this-&gt;dispatch('/comment/index/delete/1');
+        $this-&gt;assertResponseStatusCode(500);
+    }
+
+    /**
+     * @param $entityData
+     * @return \Comment\Entity\EntityType
+     * @throws \Exception
+     */
+    protected function createEntityType($entityData)
+    {
+        $entity = new EntityType();
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        try {
+            $hydrator = new DoctrineHydrator($objectManager);
+            $hydrator-&gt;hydrate($entityData, $entity);
+            $objectManager-&gt;persist($entity);
+            $objectManager-&gt;flush();
+            $objectManager-&gt;getConnection()-&gt;commit();
+        } catch (\Exception $e) {
+            $objectManager-&gt;getConnection()-&gt;rollback();
+            throw $e;
+        }
+        return $entity;
+    }
+
+    /**
+     * @param $commentText
+     * @return \Comment\Entity\Comment
+     * @throws \Doctrine\DBAL\ConnectionException
+     * @throws \Exception
+     */
+    protected function createComment($commentText)
+    {
+        /**
+         * @var \Doctrine\ORM\EntityManager $objectManager
+         */
+        $commentData = array(
+            'comment' =&gt; $commentText,
+            'entityType' =&gt; $this-&gt;entityType,
+            'entityId' =&gt; $this-&gt;user-&gt;getId(),
+            'user' =&gt; $this-&gt;getApplicationServiceLocator()-&gt;get('Zend\Authentication\AuthenticationService')
+                -&gt;getIdentity()-&gt;getUser(),
+        );
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $comment = new Comment();
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        try {
+            $hydrator = new DoctrineHydrator($objectManager);
+            $hydrator-&gt;hydrate($commentData, $comment);
+            $objectManager-&gt;persist($comment);
+            $objectManager-&gt;flush();
+            $objectManager-&gt;getConnection()-&gt;commit();
+            $objectManager-&gt;clear();
+        } catch (\Exception $e) {
+            $objectManager-&gt;getConnection()-&gt;rollback();
+            throw $e;
+        }
+
+        return $comment;
+    }
+
+    /**
+     * @param \Comment\Entity\EntityType $detachedEntity
+     */
+    protected function removeEntityType(EntityType $detachedEntity)
+    {
+        /**
+         * @var \Doctrine\ORM\EntityManager $objectManager
+         */
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $entity = $objectManager-&gt;merge($detachedEntity);
+        $objectManager-&gt;remove($entity);
+        $objectManager-&gt;flush();
+    }
+
+    /**
+     * @throws \Exception
+     */
+    protected function dropComments()
+    {
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $sql = 'TRUNCATE TABLE comment';
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        try {
+            $connection = $objectManager-&gt;getConnection();
+            $stmt = $connection-&gt;prepare($sql);
+            $stmt-&gt;execute();
+            $objectManager-&gt;getConnection()-&gt;commit();
+            $objectManager-&gt;clear();
+        } catch (\Exception $e) {
+            $objectManager-&gt;getConnection()-&gt;rollback();
+            throw $e;
+        }
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

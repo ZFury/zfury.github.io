@@ -1,0 +1,289 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/12/14
+ * Time: 1:31 PM
+ */
+
+namespace Media\Service;
+
+use Media\Entity\File as FileEntity;
+use Media\Entity\ObjectFile;
+use Media\Form\FileUpload;
+use Zend\Filter\File\RenameUpload;
+
+class File
+{
+    const PUBLIC_PATH = &quot;public/&quot;;
+    const UPLOADS_PATH = &quot;uploads/&quot;;
+    const GETPATH = true;
+    const FROM_PUBLIC = true;
+    const FROM_ROOT = false;
+    const DEFAULT_FILTER = false;
+
+    protected $sm;
+
+    public function __construct($sm)
+    {
+        $this-&gt;sm = $sm;
+    }
+
+    /**
+     * @param $path
+     * @param int $mode
+     * @return bool
+     * @throws \Exception
+     */
+    public static function prepareDir($path, $mode = 0775)
+    {
+        $destination = self::getDestination($path);
+
+        if (!is_dir($destination)) {
+            if (self::prepareDir(dirname($destination), $mode)) {
+                if (!is_writable(dirname($destination))) {
+                    throw new \Exception('Directory ' . dirname($destination) . ' is not writable');
+                }
+
+                return mkdir($destination) &amp;&amp; chmod($destination, $mode);
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param $path
+     * @return string
+     */
+    protected static function getDestination($path)
+    {
+        return preg_replace('/.[0-9]*\.((....)|(...))$/', '', $path);
+    }
+
+    /**
+     * @param $urlPart
+     * @return string
+     */
+    public function getFullUrl($urlPart)
+    {
+        return $this-&gt;sm-&gt;get('ViewHelperManager')-&gt;get('ServerUrl')-&gt;setPort(80)-&gt;__invoke() . $urlPart;
+    }
+
+    /**
+     * @param $imageName
+     * @return mixed
+     */
+    protected static function getExt($imageName)
+    {
+        return preg_replace('(.*\.)', '', $imageName);
+    }
+
+    /**
+     * @param $id
+     * @param $path
+     * @param $ext
+     * @return string
+     */
+    protected static function buildFilePath($id, $path, $ext)
+    {
+        return rtrim($path, &quot;/&quot;) . &quot;/&quot; . trim(self::buildPath($id, $ext), '/');
+    }
+
+    /**
+     * @param $id
+     * @param $ext
+     * @return string
+     */
+    private static function buildPath($id, $ext)
+    {
+        $path = sprintf('%012d', $id);
+        $explodedPath = str_split($path, 3);
+        $temp = implode('/', $explodedPath);
+        $finalPath = $temp . '.' . $ext;
+
+        return $finalPath;
+    }
+
+    /**
+     * @param $fileId
+     */
+    public function deleteFile($fileId)
+    {
+        $file = $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')-&gt;getRepository('Media\Entity\File')-&gt;find($fileId);
+        $this-&gt;deleteObjectFileEntity($file);
+        $this-&gt;deleteFileEntity($file);
+    }
+
+    /**
+     * @param FileEntity $file
+     */
+    public function deleteFileEntity(FileEntity $file)
+    {
+        $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')-&gt;remove($file);
+        $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')-&gt;flush();
+    }
+
+    /**
+     * @param FileEntity $file
+     */
+    public function deleteObjectFileEntity(FileEntity $file)
+    {
+        $objectFile = $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')
+            -&gt;getRepository('Media\Entity\ObjectFile')-&gt;findOneByFileId($file-&gt;getId());
+        $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')-&gt;remove($objectFile);
+        $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')-&gt;flush();
+    }
+
+    /**
+     * @param FileUpload $form
+     * @param $object
+     * @return FileEntity
+     */
+    public function createFile(FileUpload $form, $object)
+    {
+        $file = $this-&gt;writeFile($form);
+        $this-&gt;associateFileWithObject($file, $object);
+
+        return $file;
+    }
+
+    /**
+     * @param FileEntity $file
+     * @param $object
+     */
+    public function associateFileWithObject(FileEntity $file, $object)
+    {
+        $objectFile = new ObjectFile();
+        $objectFile-&gt;setFile($file);
+        $objectFile-&gt;setEntityName($object-&gt;getEntityName());
+        $objectFile-&gt;setObjectId($object-&gt;getId());
+        $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')-&gt;persist($objectFile);
+        $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')-&gt;flush();
+    }
+
+    /**
+     * @param FileUpload $form
+     * @return FileEntity
+     * @throws \Exception
+     */
+    public function writeFile(FileUpload $form)
+    {
+        $ext = $this-&gt;getExt($form-&gt;getData()[$form-&gt;getFileType()]['name']);
+        $type = $form-&gt;getFileType();
+        //Creating new image to get ID for building its path
+        $file = new FileEntity();
+        $file-&gt;setExtension($ext);
+        $file-&gt;setType($type);
+        $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')-&gt;persist($file);
+        $this-&gt;sm-&gt;get('doctrine.entitymanager.orm_default')-&gt;flush();
+        //Building path and creating directory. Then - moving
+        $destination = null;
+        switch ($type) {
+            case FileEntity::AUDIO_FILETYPE:
+                $destination = Audio::audioPath($file-&gt;getId(), $ext);
+                break;
+            case FileEntity::VIDEO_FILETYPE:
+                $destination = Video::videoPath($file-&gt;getId(), $ext);
+                break;
+            case FileEntity::IMAGE_FILETYPE:
+                $destination = Image::imgPath(Image::ORIGINAL, $file-&gt;getId(), $ext);
+                break;
+            default:
+        }
+        $this-&gt;prepareDir($destination);
+        $this-&gt;moveFile($destination, $form-&gt;getData()[$type]);
+
+        return $file;
+    }
+
+    /**
+     * @param $destination
+     * @param $file
+     * @return array|string
+     */
+    private function moveFile($destination, $file)
+    {
+        /** @var \Zend\Filter\File\RenameUpload $filter */
+        $filter = $this-&gt;sm-&gt;get('Zend\Filter\File\RenameUpload');
+        $filter-&gt;setTarget($destination)
+            -&gt;setRandomize(false);
+
+        return $filter-&gt;filter($file);
+    }
+
+    /**
+     * @param FileEntity $file
+     * @return FileEntity
+     */
+    public function convertFile(FileEntity $file)
+    {
+        if ($file-&gt;getType() == FileEntity::VIDEO_FILETYPE &amp;&amp;
+            $file-&gt;getExtension() !== Video::MP4_EXT
+        ) {
+            $file = $this-&gt;sm-&gt;get('Media\Service\Video')-&gt;convertVideoToMp4($file);
+        } elseif ($file-&gt;getType() == FileEntity::AUDIO_FILETYPE &amp;&amp;
+            $file-&gt;getExtension() !== Audio::MP3_EXT
+        ) {
+            $file = $this-&gt;sm-&gt;get('Media\Service\Audio')-&gt;convertAudioToMp3($file);
+        }
+
+        return $file;
+    }
+
+    /**
+     * @param string $filetype
+     */
+    public function generateFileUploadForm($filetype)
+    {
+        echo $this-&gt;sm-&gt;get('ViewHelperManager')-&gt;get('Partial')-&gt;__invoke(
+            &quot;layout/default/partial/file-upload-form.phtml&quot;,
+            ['filetype' =&gt; $filetype]
+        );
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

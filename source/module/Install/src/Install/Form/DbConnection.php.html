@@ -1,0 +1,104 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/20/14
+ * Time: 10:26 AM
+ */
+
+namespace Install\Form;
+
+use Zend\Form\Form;
+
+class DbConnection extends Form
+{
+    public function __construct()
+    {
+        parent::__construct('db_connection');
+
+        $this-&gt;add([
+            'name' =&gt; 'host',
+            'type' =&gt; 'Text',
+            'options' =&gt; [
+                'label' =&gt; 'Host',
+            ],
+        ]);
+
+        $this-&gt;add([
+            'name' =&gt; 'port',
+            'type' =&gt; 'Number',
+            'options' =&gt; [
+                'label' =&gt; 'Port',
+            ],
+        ]);
+
+        $this-&gt;add([
+            'name' =&gt; 'user',
+            'type' =&gt; 'Text',
+            'options' =&gt; [
+                'label' =&gt; 'User',
+            ],
+        ]);
+
+        $this-&gt;add([
+            'name' =&gt; 'password',
+            'type' =&gt; 'Text',
+            'options' =&gt; [
+                'label' =&gt; 'Password',
+            ],
+        ]);
+
+        $this-&gt;add([
+            'name' =&gt; 'dbname',
+            'type' =&gt; 'Text',
+            'options' =&gt; [
+                'label' =&gt; 'DB name',
+            ],
+        ]);
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,94 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * Date: 17.12.14
+ * Time: 15:43
+ */
+
+namespace Test\Controller;
+
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use Comment\Form;
+use Comment\Service;
+use Comment\Form\Filter;
+use DoctrineModule\Validator;
+use Comment\Entity;
+use Zend\Mvc\Controller\Plugin\FlashMessenger;
+
+class CommentController extends AbstractActionController
+{
+    /**
+     * @return array|ViewModel
+     * @throws \Exception
+     */
+    public function indexAction()
+    {
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $entities = $objectManager-&gt;getRepository('Test\Entity\Test')-&gt;findAll();
+        /**
+         * @var /Comment\Entity\EntityType $entityTest
+         */
+        if (!$entityTest = $objectManager-&gt;getRepository('Comment\Entity\EntityType')
+            -&gt;getEntityTypeByEntity('Test\\Entity\\Test')
+        ) {
+            $flashMessenger = new FlashMessenger();
+            $flashMessenger-&gt;addSuccessMessage('There are no comments');
+        }
+        $ViewModel = new ViewModel(array(
+            'data' =&gt; $entities,
+        ));
+        if ($entityTest) {
+            $ViewModel-&gt;setVariables([
+                'aliasEntity' =&gt; $entityTest-&gt;getAliasEntity(),
+                'enabledComment' =&gt; $entityTest-&gt;getEnabledComment()
+            ]);
+        }
+        return $ViewModel;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

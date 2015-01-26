@@ -1,0 +1,233 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Fury\Mvc\Controller;
+
+use Doctrine\ORM\EntityNotFoundException;
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use Zend\Mvc\Exception;
+use Zend\Mvc\MvcEvent;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+
+/**
+ * Class AbstractCrudController
+ * @package Fury\Mvc\Controller
+ */
+abstract class AbstractCrudController extends AbstractActionController
+{
+    /**
+     * @var ViewModel
+     */
+    protected $viewModel;
+
+    /**
+     * {@inheritdoc}
+     */
+    public function onDispatch(MvcEvent $e)
+    {
+//        $this-&gt;layout('layout/dashboard/dashboard');
+        $routeMatch = $e-&gt;getRouteMatch();
+        if (!$routeMatch) {
+            /**
+             * @todo Determine requirements for when route match is missing.
+             *       Potentially allow pulling directly from request metadata?
+             */
+            throw new Exception\DomainException('Missing route matches; unsure how to retrieve action');
+        }
+        $action = $routeMatch-&gt;getParam('action', 'not-found');
+
+        $this-&gt;viewModel = new ViewModel();
+        if ($action == 'create' || $action == 'edit') {
+            $this-&gt;viewModel-&gt;setTemplate('crud/' . $action);
+        }
+
+        parent::onDispatch($e);
+        $this-&gt;layout('layout/dashboard/dashboard');
+    }
+
+    /**
+     * Create entity
+     *
+     * @return \Zend\Http\Response|ViewModel
+     */
+    public function createAction()
+    {
+        /**
+         * @var $form \Zend\Form\Form
+         */
+        $form = $this-&gt;getCreateForm();
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            if ($form-&gt;isValid()) {
+                $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+                $entity = $this-&gt;getEntity();
+                $hydrator = new DoctrineHydrator($objectManager);
+                $hydrator-&gt;hydrate($form-&gt;getData(), $entity);
+                $objectManager-&gt;persist($entity);
+                $objectManager-&gt;flush();
+                //TODO: redirect where?
+                if (!$this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+                    return $this-&gt;redirect()-&gt;toRoute(null, ['controller' =&gt; 'management']);
+                } else {
+                    return;
+                }
+            }
+        }
+        $viewModel = $this-&gt;getViewModel();
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+
+        return $viewModel-&gt;setVariables(['form' =&gt; $form]);
+    }
+
+    /**
+     * Edit entity
+     *
+     * @return \Zend\Http\Response|ViewModel
+     * @throws EntityNotFoundException
+     */
+    public function editAction()
+    {
+        $form = $this-&gt;getEditForm();
+        $entity = $this-&gt;loadEntity();
+        $form-&gt;bind($entity);
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+//            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            $data = $this-&gt;getRequest()-&gt;getPost()-&gt;toArray();
+            $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+            $hydrator = new DoctrineHydrator($entityManager);
+            $hydrator-&gt;hydrate($data, $entity);
+            if ($form-&gt;isValid()) {
+                $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+                $objectManager-&gt;persist($entity);
+                $objectManager-&gt;flush();
+
+                //TODO: redirect where?
+                if (!$this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+                    return $this-&gt;redirect()-&gt;toRoute(null, ['controller' =&gt; 'management']);
+                } else {
+                    return;
+                }
+            }
+        }
+        $viewModel = $this-&gt;getViewModel();
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+
+        return $viewModel-&gt;setVariables(['form' =&gt; $form]);
+    }
+
+    /**
+     * Delete entity
+     *
+     * @return \Zend\Http\Response
+     * @throws EntityNotFoundException
+     */
+    public function deleteAction()
+    {
+        $entity = $this-&gt;loadEntity();
+        //TODO: change method to post maybe
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $objectManager-&gt;remove($entity);
+        $objectManager-&gt;flush();
+
+        //TODO: redirect where?
+        if (!$this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+            return $this-&gt;redirect()-&gt;toRoute(null, ['controller' =&gt; 'management']);
+        } else {
+            return;
+        }
+    }
+
+    /**
+     * Find entity by id
+     *
+     * @return mixed
+     * @throws \Doctrine\ORM\EntityNotFoundException
+     */
+    protected function loadEntity()
+    {
+        $params = array_merge($this-&gt;params()-&gt;fromPost(), $this-&gt;params()-&gt;fromRoute());
+        if (empty($params['id'])) {
+            throw new EntityNotFoundException('Bad Request');
+        }
+
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+
+        if (!$model = $objectManager-&gt;getRepository(get_class($this-&gt;getEntity()))-&gt;find($params['id'])) {
+            throw new EntityNotFoundException('Entity not found');
+        }
+        return $model;
+    }
+
+    /**
+     * Get CreateForm instance
+     * @return mixed
+     */
+    abstract protected function getCreateForm();
+
+    /**
+     * Get EditForm instance
+     * @return mixed
+     */
+    abstract protected function getEditForm();
+
+    /**
+     * Get Entity instance
+     * @return mixed
+     */
+    abstract protected function getEntity();
+
+    /**
+     * Return CRUD view model.
+     *
+     * @return ViewModel
+     */
+    protected function getViewModel()
+    {
+        return $this-&gt;viewModel;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

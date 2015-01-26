@@ -1,0 +1,258 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace User\Service;
+
+use User\Form\SetNewPasswordForm;
+use Zend\ServiceManager\ServiceManager;
+use Zend\Mime\Message as MimeMessage;
+use Zend\Mime\Part as MimePart;
+use \Zend\Mime\Mime;
+use User\Form\SignupForm;
+use User\Form\ForgotPasswordForm;
+use User\Entity;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+
+/**
+ * Created by PhpStorm.
+ * User: hunter
+ * Date: 14.08.14
+ * Time: 15:27
+ */
+class User
+{
+    /**
+     * @var null|\Zend\ServiceManager\ServiceManager
+     */
+    protected $serviceManager = null;
+
+    /**
+     * @return null|ServiceManager
+     */
+    public function getServiceLocator()
+    {
+        return $this-&gt;serviceManager;
+    }
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;serviceManager = $sm;
+    }
+
+    /**
+     * @param \User\Entity\User $user
+     * @param $content
+     */
+    public function signupMail(\User\Entity\User $user, $content)
+    {
+        $transport = $this-&gt;getServiceLocator()-&gt;get('mail.transport');
+
+        $text = new MimePart($content);
+        $text-&gt;type = Mime::TYPE_TEXT;
+        $text-&gt;charset = &quot;UTF-8&quot;;
+
+        $html = new MimePart($content);
+        $html-&gt;type = Mime::TYPE_HTML;
+        $html-&gt;encoding = Mime::ENCODING_BASE64;
+        $html-&gt;charset = &quot;UTF-8&quot;;
+
+        $body = new MimeMessage();
+        $body-&gt;setParts([$text, $html]);
+
+        /**
+         * @var \Zend\Mail\Message $message
+         */
+        $message = $this-&gt;getServiceLocator()-&gt;get('mail.message');
+        $message
+            -&gt;addTo($user-&gt;getEmail())
+            -&gt;setSubject(&quot;Sign up&quot;)
+            -&gt;setBody($body);
+
+        return $transport-&gt;send($message);
+    }
+
+    /**
+     * @param Entity\User $user
+     * @param $content
+     * @return mixed
+     */
+    public function forgotPasswordpMail(\User\Entity\User $user, $content)
+    {
+        $transport = $this-&gt;getServiceLocator()-&gt;get('mail.transport');
+
+        $text = new MimePart($content);
+        $text-&gt;type = Mime::TYPE_TEXT;
+        $text-&gt;charset = &quot;UTF-8&quot;;
+
+        $html = new MimePart($content);
+        $html-&gt;type = Mime::TYPE_HTML;
+        $html-&gt;encoding = Mime::ENCODING_BASE64;
+        $html-&gt;charset = &quot;UTF-8&quot;;
+
+        $body = new MimeMessage();
+        $body-&gt;setParts([$text, $html]);
+
+        /**
+         * @var \Zend\Mail\Message $message
+         */
+        $message = $this-&gt;getServiceLocator()-&gt;get('mail.message');
+        $message
+            -&gt;addTo($user-&gt;getEmail())
+            -&gt;setSubject(&quot;Password recovery&quot;)
+            -&gt;setBody($body);
+
+        return $transport-&gt;send($message);
+    }
+
+    /**
+     * @param SignupForm $form
+     * @return Entity\User
+     * @throws \Exception
+     */
+    public function create(SignupForm $form)
+    {
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $data = $form-&gt;getData();
+        $user = new Entity\User();
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        try {
+            $hydrator = new DoctrineHydrator($objectManager);
+            $hydrator-&gt;hydrate($form-&gt;getData(), $user);
+            $user-&gt;setDisplayName($user-&gt;getEmail());
+            $user-&gt;setRole($user::ROLE_USER);
+            $user-&gt;setConfirm($user-&gt;generateConfirm());
+            $user-&gt;setStatus($user::STATUS_UNCONFIRMED);
+
+            $objectManager-&gt;persist($user);
+            $objectManager-&gt;flush();
+
+            /**
+             * @var $authService \User\Service\Auth
+             */
+            $authService = $this-&gt;getServiceLocator()-&gt;get('User\Service\Auth');
+            $authService-&gt;generateEquals($user, $data['password']);
+
+            //use module mail for user registration
+            if ($this-&gt;useModuleMail()) {
+                $mailService = $this-&gt;getServiceLocator()-&gt;get('Mail\Service\Mail');
+                $mailService-&gt;signUpMail($user);
+            } else {
+                $html = $this-&gt;getServiceLocator()-&gt;get('ControllerPluginManager')-&gt;get('forward')
+                    -&gt;dispatch('User\Controller\Mail', array('action' =&gt; 'signup', 'user' =&gt; $user));
+                $this-&gt;signupMail($user, $html);
+            }
+
+            $objectManager-&gt;getConnection()-&gt;commit();
+        } catch (\Exception $exception) {
+            $objectManager-&gt;getConnection()-&gt;rollback();
+            throw $exception;
+        }
+
+        return $user;
+    }
+
+    /**
+     * @param ForgotPasswordForm $form
+     */
+    public function forgotPassword(ForgotPasswordForm $form)
+    {
+        $data = $form-&gt;getData();
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        /** @var Entity\User $user */
+        $user = $objectManager
+            -&gt;getRepository('User\Entity\User')
+            -&gt;findOneBy(array('email' =&gt; $data['email']));
+        $user-&gt;setConfirm($user-&gt;generateConfirm());
+        $objectManager-&gt;persist($user);
+        $objectManager-&gt;flush();
+
+        //use module mail for user registration
+        if ($this-&gt;useModuleMail()) {
+            /** @var \Mail\Service\Mail $mailService */
+            $mailService = $this-&gt;getServiceLocator()-&gt;get('Mail\Service\Mail');
+            $mailService-&gt;forgotPassword($user);
+        } else {
+            $html = $this-&gt;getServiceLocator()-&gt;get('ControllerPluginManager')-&gt;get('forward')
+                -&gt;dispatch('User\Controller\Mail', array('action' =&gt; 'forgot-password', 'user' =&gt; $user));
+
+            $this-&gt;forgotPasswordpMail($user, $html);
+        }
+    }
+
+    /**
+     * @return bool
+     */
+    public function useModuleMail()
+    {
+        $config = $this-&gt;getServiceLocator()-&gt;get('config');
+        if (isset($config['mailOptions'])) {
+            $mailOptions = $this-&gt;getServiceLocator()-&gt;get('config')['mailOptions'];
+        }
+        if (isset($mailOptions['useModuleMail']) &amp;&amp; $mailOptions['useModuleMail'] === true) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @param SetNewPasswordForm $form
+     * @return Entity\User
+     * @throws \Exception
+     */
+    public function changePassword(\User\Entity\User $user, SetNewPasswordForm $form)
+    {
+        /** @var \User\Service\Auth $userAuth */
+        $userAuth = $this-&gt;getServiceLocator()-&gt;get('\User\Service\Auth');
+        $userAuth-&gt;generateEquals($user, $form-&gt;getData()['password']);
+
+        return $user;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

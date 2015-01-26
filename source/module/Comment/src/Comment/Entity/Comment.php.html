@@ -1,0 +1,364 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Entity;
+
+use Doctrine\ORM\Mapping as ORM;
+use User\Entity\User;
+use Zend\Form\Annotation;
+use Doctrine\Common\Persistence\Event\LifecycleEventArgs;
+use Fury\DBAL\Entity\EntityBase;
+
+/**
+ *
+ * @ORM\Entity(repositoryClass=&quot;Comment\Repository\Comment&quot;)
+ * @ORM\Table(name=&quot;comment&quot;)
+ * @Annotation\Name(&quot;comment&quot;)
+ * @Annotation\Hydrator(&quot;Zend\Stdlib\Hydrator\ObjectProperty&quot;)
+ * @ORM\HasLifecycleCallbacks
+ */
+class Comment extends EntityBase
+{
+    /**
+     * @var int
+     * @Annotation\Type(&quot;Zend\Form\Element\Text&quot;)
+     * @Annotation\Exclude
+     * @ORM\Id
+     * @ORM\Column(type=&quot;integer&quot;, options={&quot;unsigned&quot;=true})
+     * @ORM\GeneratedValue(strategy=&quot;AUTO&quot;)
+     */
+    protected $id;
+
+    /**
+     * @var string
+     * @Annotation\Type(&quot;Zend\Form\Element\Textarea&quot;)
+     * @Annotation\Required(true)
+     * @Annotation\Options({&quot;label&quot;:&quot;Comment:&quot;,})
+     * @Annotation\Attributes({&quot;class&quot;:&quot;form-control&quot;})
+     * @ORM\Column(type=&quot;text&quot;, nullable=false)
+     */
+    protected $comment;
+
+    /**
+     * @ORM\ManyToOne(targetEntity=&quot;User\Entity\User&quot;)
+     * @ORM\JoinColumn(name=&quot;userId&quot;, referencedColumnName=&quot;id&quot;, onDelete=&quot;cascade&quot;)
+     */
+    private $user;
+
+    /**
+     * @var int
+     * @Annotation\Type(&quot;Zend\Form\Element\Text&quot;)
+     * @ORM\Column(type=&quot;integer&quot;, options={&quot;unsigned&quot;=true})
+     */
+    protected $userId;
+
+    /**
+     * @Annotation\Required(true)
+     * @ORM\ManyToOne(targetEntity=&quot;Comment\Entity\EntityType&quot;)
+     * @ORM\JoinColumn(name=&quot;entityTypeId&quot;, referencedColumnName=&quot;id&quot;, onDelete=&quot;cascade&quot;)
+     */
+    protected $entityType;
+
+    /**
+     * @var int
+     * @Annotation\Type(&quot;Zend\Form\Element\Text&quot;)
+     * @ORM\Column(type=&quot;integer&quot;, nullable=false, options={&quot;unsigned&quot;=true})
+     */
+    protected $entityTypeId;
+
+    /**
+     * @Annotation\Required(true)
+     * @Annotation\Type(&quot;Zend\Form\Element\Text&quot;)
+     * @ORM\Column(type=&quot;integer&quot;, nullable=false)
+     */
+    protected $entityId;
+
+    /**
+     * @var created
+     * @Annotation\Exclude
+     * @ORM\Column(type=&quot;datetime&quot;)
+     */
+    protected $created;
+
+    /**
+     * @var updated
+     * @Annotation\Exclude
+     * @ORM\Column(type=&quot;datetime&quot;)
+     */
+    protected $updated;
+
+    /**
+     * @ORM\PreRemove
+     * @param LifecycleEventArgs $args
+     * @throws \Exception
+     */
+    public function deleteChildren(LifecycleEventArgs $args)
+    {
+        $objectManager = $args-&gt;getObjectManager();
+        $entityType = $objectManager-&gt;getRepository('Comment\Entity\EntityType')-&gt;getEntityType('comment');
+        $commentRepository = $objectManager-&gt;getRepository('Comment\Entity\Comment');
+        $comments = $commentRepository-&gt;findBy(array('entityType' =&gt; $entityType, 'entityId' =&gt; $this-&gt;getId()));
+        foreach ($comments as $comment) {
+            $objectManager-&gt;remove($comment);
+        }
+    }
+
+    /**
+     * Now we tell doctrine that before we persist or update we call the updatedTimestamps() function.
+     *
+     * @ORM\PrePersist
+     * @ORM\PreUpdate
+     */
+    public function updatedTimestamps()
+    {
+        $this-&gt;setUpdated(new \DateTime(date('Y-m-d H:i:s')));
+
+        if ($this-&gt;getCreated() == null) {
+            $this-&gt;setCreated(new \DateTime(date('Y-m-d H:i:s')));
+        }
+    }
+
+    /**
+     * Set id.
+     *
+     * @param int $id
+     *
+     * @return void
+     */
+    public function setId($id)
+    {
+        $this-&gt;id = $id;
+    }
+
+    /**
+     * Get id.
+     *
+     * @return int
+     */
+    public function getId()
+    {
+        return $this-&gt;id;
+    }
+
+    /**
+     * @param $userId
+     */
+    public function setUserId($userId)
+    {
+        $this-&gt;userId = $userId;
+    }
+
+    /**
+     * @return int
+     */
+    public function getUserId()
+    {
+        return $this-&gt;userId;
+    }
+
+    /**
+     * @param User $user
+     */
+    public function setUser(User $user)
+    {
+        $this-&gt;user = $user;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getUser()
+    {
+        return $this-&gt;user;
+    }
+
+    /**
+     * Set comment
+     *
+     * @param string $comment
+     *
+     * @return void
+     */
+    public function setComment($comment)
+    {
+        $this-&gt;comment = $comment;
+    }
+
+    /**
+     * Get comment.
+     *
+     * @return string
+     */
+    public function getComment()
+    {
+        return $this-&gt;comment;
+    }
+
+    /**
+     * @param EntityType $entityType
+     */
+    public function setEntityType(EntityType $entityType)
+    {
+        $this-&gt;entityType = $entityType;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getEntityType()
+    {
+        return $this-&gt;entityType;
+    }
+
+    /**
+     * Set entityTypeId.
+     *
+     * @param int $entityTypeId
+     *
+     * @return void
+     */
+    public function setEntityTypeId($entityTypeId)
+    {
+        $this-&gt;entityTypeId = $entityTypeId;
+    }
+
+    /**
+     * Get entityTypeId.
+     *
+     * @return int
+     */
+    public function getEntityTypeId()
+    {
+        return $this-&gt;entityTypeId;
+    }
+
+    /**
+     * Set entityId.
+     *
+     * @param int $entityId
+     *
+     * @return void
+     */
+    public function setEntityId($entityId)
+    {
+        $this-&gt;entityId = $entityId;
+    }
+
+    /**
+     * Get entityId.
+     *
+     * @return string
+     */
+    public function getEntityId()
+    {
+        return $this-&gt;entityId;
+    }
+
+    /**
+     * Set created.
+     *
+     * @param string $created
+     *
+     * @return void
+     */
+    public function setCreated($created)
+    {
+        $this-&gt;created = $created;
+    }
+
+    /**
+     * Get created.
+     *
+     * @return string
+     */
+    public function getCreated()
+    {
+        return $this-&gt;created;
+    }
+
+    /**
+     * Get updated.
+     *
+     * @return string
+     */
+    public function getUpdated()
+    {
+        return $this-&gt;updated;
+    }
+
+    /**
+     * Set updated.
+     *
+     * @param string $updated
+     *
+     * @return void
+     */
+    public function setUpdated($updated)
+    {
+        $this-&gt;updated = $updated;
+    }
+
+    /**
+     * @return array
+     */
+    public function toArray()
+    {
+        {
+            $result = array(
+                &quot;id&quot; =&gt; $this-&gt;getId(),
+                &quot;comment&quot; =&gt; $this-&gt;getComment(),
+                &quot;entityType&quot; =&gt; $this-&gt;getEntityType(),
+                &quot;entityTypeId&quot; =&gt; $this-&gt;getEntityTypeId(),
+                &quot;entityId&quot; =&gt; $this-&gt;getEntityId(),
+                &quot;user&quot; =&gt; $this-&gt;getUser(),
+                &quot;created&quot; =&gt; $this-&gt;getCreated(),
+                &quot;updated&quot; =&gt; $this-&gt;getUpdated(),
+            );
+            return $result;
+        }
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

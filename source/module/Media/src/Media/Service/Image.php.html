@@ -1,0 +1,127 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/3/14
+ * Time: 12:25 PM
+ */
+
+namespace Media\Service;
+
+class Image extends File
+{
+    const IMAGES_PATH = &quot;images/&quot;;
+
+    const ORIGINAL = 3;
+    const BIG_THUMB = 2;
+    const SMALL_THUMB = 1;
+    const EXTRA_SMALL_THUMB = 4;
+    const B_THUMB_WIDTH = 400;
+    const B_THUMB_HEIGHT = 400;
+    const S_THUMB_WIDTH = 150;
+    const S_THUMB_HEIGHT = 150;
+    const XS_THUMB_WIDTH = 20;
+    const XS_THUMB_HEIGHT = 20;
+
+    /**
+     * @param $type
+     * @param $id
+     * @param $ext
+     * @param bool $from
+     * @return string
+     * @throws \Exception
+     */
+    public static function imgPath($type, $id, $ext, $from = File::FROM_ROOT)//$onlyPath it's because we need another
+    {//path when working with Original and when we are getting it
+        if (self::ORIGINAL == $type) {
+            if ($from == File::FROM_ROOT) {
+                $path = self::PUBLIC_PATH . self::UPLOADS_PATH . self::IMAGES_PATH . &quot;original/&quot;;
+            } else {
+                $path = DIRECTORY_SEPARATOR . self::UPLOADS_PATH . self::IMAGES_PATH . &quot;original/&quot;;
+            }
+
+
+        } else {
+            $size = self::sizeByType($type);
+            if (empty($size)) {
+                throw new \Exception('Unsupported size');
+            }
+            if ($from == File::FROM_ROOT) {
+                $path = self::PUBLIC_PATH .
+                    self::UPLOADS_PATH .
+                    self::IMAGES_PATH .
+                    $size['width'] .
+                    'x' .
+                    $size['height'];
+            } elseif ($from == File::FROM_PUBLIC) {
+                $path = DIRECTORY_SEPARATOR .
+                    self::UPLOADS_PATH .
+                    self::IMAGES_PATH .
+                    $size['width'] . 'x' . $size['height'];
+            }
+        }
+
+        return self::buildFilePath($id, $path, $ext);
+    }
+
+    /**
+     * @param $type
+     * @return array
+     */
+    public static function sizeByType($type)
+    {
+        switch ($type) {
+            case self::BIG_THUMB:
+                return array('width' =&gt; self::B_THUMB_WIDTH, 'height' =&gt; self::B_THUMB_HEIGHT);
+            case self::SMALL_THUMB:
+                return array('width' =&gt; self::S_THUMB_WIDTH, 'height' =&gt; self::S_THUMB_HEIGHT);
+            case self::EXTRA_SMALL_THUMB:
+                return array('width' =&gt; self::XS_THUMB_WIDTH, 'height' =&gt; self::XS_THUMB_HEIGHT);
+        }
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

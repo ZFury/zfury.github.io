@@ -1,0 +1,421 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 1/9/15
+ * Time: 3:13 PM
+ */
+namespace Install\Service;
+
+use Install\Form\DbConnection;
+use Install\Form\MailConfig;
+use Install\Form\Modules;
+use Zend\Db\Adapter\Adapter;
+use Zend\Session\Container;
+
+class Install
+{
+    const DONE = 'progress-tracker-done';
+    const TODO = 'progress-tracker-todo';
+    const STEPS_NUMBER = 6;
+    const MODULES = 'module/';
+    const CHECKED = 'good';
+    const UNCHECKED = 'bad';
+    const GOOD = true;
+    const BAD = false;
+    const PHP_VERSION = '5.4.35-1+deb.sury.org~precise+1';
+    const GLOBAL_REQUIREMENTS = true;
+    const LOCAL_REQUIREMENTS = false;
+
+    protected $sm;
+
+    /**
+     * @param $sm
+     */
+    public function __construct($sm)
+    {
+        $this-&gt;sm = $sm;
+    }
+
+    /**
+     * @param $search
+     * @param $array
+     * @param bool $strict
+     * @return bool
+     */
+    public function inArrayRecursive($search, $array, $strict = false)
+    {
+        $result = false;
+        if (in_array($search, $array)) {
+            return true;
+        }
+        foreach ($array as $value) {
+            if (is_array($value)) {
+                $result = $this-&gt;inArrayRecursive($search, $value);
+                if ($result) {
+                    return true;
+                }
+            } else {
+                return ($strict) ? ($search === $value) : ($search == $value);
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * @param $filePath
+     * @param $word
+     * @param $newRow
+     * @param null $options
+     */
+    public function replaceRowInFile($filePath, $word, $newRow, $options = null)
+    {
+        $newFilePath = null;
+        $afterLine = false;
+        if (is_array($options)) {
+            if (array_key_exists('newFilePath', $options)) {
+                $newFilePath = $options['newFilePath'];
+            }
+            if (array_key_exists('afterLine', $options)) {
+                $afterLine = $options['afterLine'];
+            }
+        }
+        $reading = file_get_contents($filePath);
+        if (false === $afterLine) {
+            $replaced = preg_replace(&quot;#$word.*\n#&quot;, &quot;$newRow\n&quot;, $reading);
+        } else {
+            $replaced = preg_replace(&quot;#$word.*\\s+\\K.*#&quot;, &quot;$newRow\n&quot;, $reading);
+        }
+        if (null === $newFilePath) {
+            file_put_contents($filePath, $replaced);
+        } else {
+            file_put_contents($newFilePath, $replaced);
+        }
+    }
+
+    /**
+     * @param Modules $modulesForm
+     */
+    public function hideModules(Modules $modulesForm)
+    {
+        $modules = $modulesForm-&gt;getData();
+        for ($i=0; $i&lt;count($modules); $i++) {
+            $module = array_keys($modules)[$i];
+            if (Install::UNCHECKED == array_values($modules)[$i]) {
+                $this-&gt;replaceRowInFile('config/application.config.php', &quot;'$module'&quot;, &quot;//'$module'&quot;);
+                if (file_exists(Install::MODULES . $module)) {
+                    rename(Install::MODULES . $module, Install::MODULES . &quot;.$module&quot;);
+                }
+            } else {
+                $this-&gt;replaceRowInFile('config/application.config.php', &quot;//'$module'&quot;, &quot;'$module',&quot;);
+                if (file_exists(Install::MODULES . &quot;.$module&quot;)) {
+                    rename(Install::MODULES . &quot;.$module&quot;, Install::MODULES . $module);
+                }
+            }
+        }
+    }
+
+    /**
+     * @param DbConnection $dbForm
+     */
+    public function createDbConfig(DbConnection $dbForm)
+    {
+        $user = $dbForm-&gt;getData()['user'];
+        $password = $dbForm-&gt;getData()['password'];
+        $dbname=$dbForm-&gt;getData()['dbname'];
+        $host=$dbForm-&gt;getData()['host'];
+        $port=$dbForm-&gt;getData()['port'];
+        $content = &quot;&lt;?php return ['doctrine' =&gt;['connection' =&gt; ['orm_default' =&gt; [
+                    'driverClass' =&gt; 'Doctrine\\DBAL\\Driver\\PDOMySql\\Driver',
+                    'params' =&gt; [
+                        'host'     =&gt; '$host',
+                        'port'     =&gt; '$port',
+                        'user'     =&gt; '$user',
+                        'password' =&gt; '$password',
+                        'dbname'   =&gt; '$dbname',
+                    ],
+                    'doctrine_type_mappings' =&gt; ['enum' =&gt; 'string'],
+                    ]]]];&quot;;
+        $config = fopen(&quot;config/autoload/doctrine.local.php&quot;, &quot;w&quot;);
+        fwrite($config, $content);
+        fclose($config);
+    }
+
+    /**
+     * @param DbConnection $dbForm
+     */
+    public function checkDbConnection(DbConnection $dbForm)
+    {
+        $dbname=$dbForm-&gt;getData()['dbname'];
+        $host=$dbForm-&gt;getData()['host'];
+        $port=$dbForm-&gt;getData()['port'];
+        $dsn = &quot;mysql:dbname=$dbname;host=$host;port=$port&quot;;
+        $user = $dbForm-&gt;getData()['user'];
+        $password = $dbForm-&gt;getData()['password'];
+        $connection = new \PDO($dsn, $user, $password);
+    }
+
+    /**
+     * @return array
+     */
+    public function checkProgress()
+    {
+        $session = new Container('progress_tracker');
+        $doneSteps = [];
+        foreach ($this-&gt;getSteps() as $step) {
+            $doneSteps[$step] = $session-&gt;offsetGet($step) ? $session-&gt;offsetGet($step) : Install::TODO;
+        }
+
+        return $doneSteps;
+    }
+
+    /**
+     * @param bool $global
+     * @return array
+     */
+    public function checkFiles($global = self::LOCAL_REQUIREMENTS)
+    {
+        $checkedDirectories = [];
+        $checkedFiles = [];
+        if (true === $global) {
+            $uncheckedFiles = $this-&gt;sm-&gt;get('Config')['installation']['files-to-check-global'];
+        } else {
+            $uncheckedFiles = null;
+            if (array_key_exists('files-to-check', $this-&gt;sm-&gt;get('Config')['installation'])) {
+                $uncheckedFiles = $this-&gt;sm-&gt;get('Config')['installation']['files-to-check'];
+            }
+        }
+
+        if (null !== $uncheckedFiles) {
+            for ($i=0; $i&lt;count($uncheckedFiles); $i++) {
+                $fileName = array_keys($uncheckedFiles[$i]);
+                $fileName = array_shift($fileName);
+                $filePath = array_values($uncheckedFiles[$i]);
+                $filePath = array_shift($filePath);
+
+                if (file_exists($filePath)) {
+                    if (is_dir($filePath)) {
+                        $message = 'Directory ';
+                        $whereToPush = &amp;$checkedDirectories;
+                    } else {
+                        $message = 'File ';
+                        $whereToPush = &amp;$checkedFiles;
+                    }
+                    if (is_writable($filePath)) {
+                        $message .= &quot;'$fileName' which path is '$filePath' exists and is writable!&quot;;
+                        $status = Install::GOOD;
+                    } else {
+                        $message .= &quot;'$fileName' which path is '$filePath' is not writable.&quot;
+                            . &quot;Please, make it writable!&quot;;
+                        $status = Install::BAD;
+                    }
+                } else {
+                    $message = &quot;'$fileName' which path is '$filePath' does not exist.&quot;
+                        . &quot;Please, create it!&quot;;
+                    $status = Install::BAD;
+                }
+                array_push($whereToPush, [$fileName =&gt; [
+                            'message' =&gt; $message,
+                            'status' =&gt; $status,
+                            'path' =&gt; $filePath]
+                ]);
+            }
+        }
+
+        return ['checkedFiles' =&gt; $checkedFiles, 'checkedDirectories' =&gt; $checkedDirectories];
+    }
+
+    /**
+     * @return array
+     */
+    public function checkTools()
+    {
+        $checkedTools = [];
+        $uncheckedTools = null;
+        if (array_key_exists('tools-to-check', $this-&gt;sm-&gt;get('Config')['installation'])) {
+            $uncheckedTools = $this-&gt;sm-&gt;get('Config')['installation']['tools-to-check'];
+        }
+
+        if (null !== $uncheckedTools) {
+            for ($i=0; $i&lt;count($uncheckedTools); $i++) {
+                $toolName = array_keys($uncheckedTools[$i]);
+                $toolName = array_shift($toolName);
+                $versionCommand = array_values($uncheckedTools[$i]);
+                $versionCommand = array_shift($versionCommand);
+                $message = &quot;Tool '$toolName' which version command is '$versionCommand' &quot;;
+                $output = [];
+                exec($versionCommand, $output, $return);
+                if (isset($return) &amp;&amp; 0 === $return) {
+                    $message .= &quot;exists!&quot;;
+                    array_push($checkedTools, [$toolName =&gt; ['message' =&gt; $message, 'status' =&gt; Install::GOOD]]);
+                } else {
+                    $message .= &quot;doesn't exist!&quot;;
+                    array_push($checkedTools, [$toolName =&gt; ['message' =&gt; $message, 'status' =&gt; Install::BAD]]);
+                }
+            }
+        }
+        return $checkedTools;
+    }
+
+    /**
+     * @param MailConfig $mailForm
+     */
+    public function createMailConfig(MailConfig $mailForm)
+    {
+        copy('config/autoload/mail.local.php.dist', 'config/autoload/mail.local.php');
+
+        for ($i=0; $i&lt;count($mailForm-&gt;getData()); $i++) {
+            $paramName = array_keys($mailForm-&gt;getData())[$i];
+            $paramValue = array_values($mailForm-&gt;getData())[$i];
+            switch ($paramName) {
+                case 'from':
+                    $emailsArray = [];
+                    for ($j = 0; $j &lt; count($paramValue); $j++) {
+                        $value = array_values($paramValue[$j]);
+                        $currentEmail = array_shift($value);
+                        if ('emails' == $paramName) {
+                            $paramName = strtoupper($paramName);
+                        }
+                        array_push($emailsArray, &quot;'$currentEmail'&quot;);
+                    }
+                    $emails = implode(',', $emailsArray);
+                    $this-&gt;replaceRowInFile(
+                        'config/autoload/mail.local.php',
+                        &quot;'$paramName'&quot;,
+                        &quot;'$paramName'=&gt;[$emails],&quot;
+                    );
+                    break;
+                case 'header':
+                    for ($j = 0; $j &lt; count($paramValue); $j++) {
+                        $headerName = strtoupper($paramValue[$j]['header-name']);
+                        $headerValue = $paramValue[$j]['header-value'];
+                        $newRow = &quot;'$headerName'=&gt;'$headerValue',&quot;;
+                        if ('PROJECT' === $headerName) {
+                            $this-&gt;replaceRowInFile(
+                                'config/autoload/mail.local.php',
+                                &quot;'$headerName'&quot;,
+                                $newRow
+                            );
+                        } else {
+                            $this-&gt;replaceRowInFile(
+                                'config/autoload/mail.local.php',
+                                &quot;'EMAILS'&quot;, //this means, that a new row will be inserted after matched one
+                                $newRow,
+                                ['afterLine' =&gt; true]
+                            );
+                        }
+                    }
+                    break;
+                case 'emails':
+                    $emails = &quot;'&quot;;
+                    for ($j = 0; $j &lt; count($paramValue); $j++) {
+                        $value = array_values($paramValue[$j]);
+                        $currentEmail = array_shift($value);
+                        if ('emails' == $paramName) {
+                            $paramName = strtoupper($paramName);
+                        }
+                        if (count($paramValue)&gt;1) {
+                            $emails .= &quot;$currentEmail,&quot;;
+                        } else {
+                            $emails .= &quot;$currentEmail&quot;;
+                        }
+                    }
+                    $this-&gt;replaceRowInFile(
+                        'config/autoload/mail.local.php',
+                        &quot;'$paramName'&quot;,
+                        &quot;'$paramName'=&gt;$emails',&quot;
+                    );
+                    break;
+                default:
+                    $newRow = &quot;'$paramName'=&gt;'$paramValue',&quot;;
+                    $this-&gt;replaceRowInFile(
+                        'config/autoload/mail.local.php',
+                        &quot;'$paramName'&quot;,
+                        &quot;$newRow&quot;
+                    );
+                    break;
+            }
+        }
+    }
+
+    /**
+     * @return null|string
+     */
+    public function checkPreviousStep()
+    {
+        $session = new Container('progress_tracker');
+        $previousStep = $this-&gt;getSteps()[array_search($session-&gt;offsetGet('current_step'), $this-&gt;getSteps())-1];
+        if ($session-&gt;offsetExists($previousStep) &amp;&amp; $session-&gt;offsetGet($previousStep) == self::DONE) {
+            return null;
+        } else {
+            return $previousStep;
+        }
+    }
+
+    /**
+     * @return string
+     */
+    public static function getCurrentStep()
+    {
+        $session = new Container('progress_tracker');
+        $currentStep = $session-&gt;offsetGet('current_step');
+        if (null === $currentStep) {
+            $currentStep = 'global-requirements';
+        }
+
+        return self::getSteps()[array_search($currentStep, self::getSteps())];
+    }
+
+    /**
+     * @return array
+     */
+    public static function getSteps()
+    {
+        return ['global-requirements', 'database', 'mail', 'modules', 'modules-requirements', 'finish'];
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

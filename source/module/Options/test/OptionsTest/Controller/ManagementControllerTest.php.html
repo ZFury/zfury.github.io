@@ -1,0 +1,245 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexfloppy
+ */
+
+namespace OptionsTest\Controller;
+
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Fury\Test\Controller\ControllerTestCase;
+use Zend\Http\Response;
+use Zend\Stdlib;
+
+/**
+ * Class ManagementControllerTest
+ * @package OptionsTest\Controller
+ */
+class ManagementControllerTest extends ControllerTestCase
+{
+    /**
+     * @var bool
+     */
+    protected $traceError = true;
+
+    /**
+     * @var array
+     */
+    protected $userData = [
+        'name' =&gt; 'adminTest1',
+        'email' =&gt; 'adminTest@nix.com',
+        'password' =&gt; '123456',
+        'repeat-password' =&gt; '123456',
+        'submit' =&gt; 'Sign Up'
+    ];
+
+    /**
+     * @var array
+     */
+    protected $optionData = [
+        'namespace' =&gt; 'default',
+        'key' =&gt; '1',
+        'value' =&gt; 'value',
+        'description' =&gt; 'description',
+        'submit' =&gt; 'Create'
+    ];
+
+    /**
+     *  migration up
+     */
+    public static function setUpBeforeClass()
+    {
+        exec('vendor/doctrine/doctrine-module/bin/doctrine-module orm:schema-tool:update --force');
+    }
+
+    /**
+     * migration down
+     */
+    public static function tearDownAfterClass()
+    {
+        exec('vendor/doctrine/doctrine-module/bin/doctrine-module orm:schema-tool:drop --force');
+    }
+
+    /**
+     * @throws \User\Exception\AuthException
+     */
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include 'config/application.config.php'
+        );
+        $this-&gt;setTraceError(true);
+        parent::setUp();
+
+        $this-&gt;setupAdmin();
+    }
+
+    /**
+     *  remove option
+     */
+    public function tearDown()
+    {
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $option = $objectManager-&gt;getRepository('Options\Entity\Options')
+            -&gt;findOneBy(array('namespace' =&gt; $this-&gt;optionData['namespace'], 'key' =&gt; $this-&gt;optionData['key']));
+        if ($option) {
+            $objectManager-&gt;remove($option);
+            $objectManager-&gt;flush();
+        }
+    }
+
+    /**
+     * index action access
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testIndexActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/options');
+        $this-&gt;assertResponseStatusCode(200);
+    }
+
+    /**
+     * create action access
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testCreateActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/options/management/create');
+        $this-&gt;assertEquals(200, $this-&gt;getResponse()-&gt;getStatusCode());
+    }
+
+    /**
+     * test create action
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testCreateAction()
+    {
+        $parameters = new Stdlib\Parameters($this-&gt;optionData);
+
+        $this-&gt;getRequest()-&gt;setMethod('POST')
+            -&gt;setPost($parameters);
+
+        $this-&gt;dispatch('/options/management/create');
+        $this-&gt;assertEquals(302, $this-&gt;getResponse()-&gt;getStatusCode());
+        $this-&gt;assertRedirectTo('/options/management');
+    }
+
+    /**
+     * test edit action
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testEditAction()
+    {
+        //create
+        $this-&gt;createOption();
+
+        //get
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $option = $objectManager
+            -&gt;getRepository('Options\Entity\Options')
+            -&gt;findOneBy(array('namespace' =&gt; $this-&gt;optionData['namespace'], 'key' =&gt; $this-&gt;optionData['key']));
+
+        //dispatch edit + post data
+        $parameters = new Stdlib\Parameters(
+            [
+                'namespace' =&gt; $option-&gt;getNamespace(),
+                'key' =&gt; $option-&gt;getKey(),
+                'value' =&gt; $option-&gt;getValue(),
+                'description' =&gt; $option-&gt;getDescription()
+            ]
+        );
+
+        $this-&gt;getRequest()-&gt;setMethod('POST')
+            -&gt;setPost($parameters);
+
+        $editPath = '/options/management/edit/' . $this-&gt;optionData[&quot;namespace&quot;] . '/' . $this-&gt;optionData[&quot;key&quot;];
+        $this-&gt;dispatch($editPath);
+
+        $this-&gt;assertEquals(302, $this-&gt;getResponse()-&gt;getStatusCode());
+        $this-&gt;assertRedirectTo('/options/management');
+    }
+
+    /**
+     * test delete action
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testDeleteAction()
+    {
+        //create
+        $this-&gt;createOption();
+
+        // remove option
+        $deletePath = '/options/management/delete/' . $this-&gt;optionData[&quot;namespace&quot;] . '/' . $this-&gt;optionData[&quot;key&quot;];
+        $this-&gt;dispatch($deletePath);
+
+        $this-&gt;assertEquals(302, $this-&gt;getResponse()-&gt;getStatusCode());
+        $this-&gt;assertRedirectTo('/options/management');
+    }
+
+    /**
+     *  create option
+     */
+    public function createOption()
+    {
+        $option = $this-&gt;getApplicationServiceLocator()-&gt;get('Options\Entity\Options');
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        $hydrator = new DoctrineHydrator($objectManager);
+        $hydrator-&gt;hydrate($this-&gt;optionData, $option);
+        $option-&gt;setCreated(new \DateTime(date('Y-m-d H:i:s')));
+        $option-&gt;setUpdated(new \DateTime(date('Y-m-d H:i:s')));
+        $objectManager-&gt;persist($option);
+        $objectManager-&gt;flush();
+        $objectManager-&gt;getConnection()-&gt;commit();
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

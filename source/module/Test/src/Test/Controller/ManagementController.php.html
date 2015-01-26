@@ -1,0 +1,132 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Test\Controller;
+
+use Fury\Mvc\Controller\AbstractCrudController;
+use Test\Form;
+use Test\Entity;
+use Zend\View\Model\JsonModel;
+use Zend\View\Model\ViewModel;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Test\Grid\Grid;
+
+class ManagementController extends AbstractCrudController
+{
+    protected function getEntity()
+    {
+        return new Entity\Test();
+    }
+
+    protected function getCreateForm()
+    {
+        return new Form\CreateForm(null, ['sm' =&gt; $this-&gt;getServiceLocator()]);
+    }
+
+    protected function getEditForm()
+    {
+        return new Form\EditForm(null, ['sm' =&gt; $this-&gt;getServiceLocator()]);
+    }
+
+    public function indexAction()
+    {
+        $sm = $this-&gt;getServiceLocator();
+        $grid = new Grid($sm);
+        $grid-&gt;getData();
+        $viewModel = new ViewModel(['grid' =&gt; $grid]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+        return $viewModel;
+    }
+
+    public function angularAction()
+    {
+        /* @var \Zend\Http\Request $request */
+        $request = $this-&gt;getRequest();
+        $sm = $this-&gt;getServiceLocator();
+        $grid = new Grid($sm);
+        $grid-&gt;init();
+        if ($request-&gt;isXmlHttpRequest()) {
+            return new JsonModel(array(
+                'data' =&gt; $grid-&gt;getData(),
+                'allowedFilters' =&gt; $grid-&gt;getAllowedFilters(),
+                'totalPages' =&gt; $grid-&gt;totalPages(),
+                'columns' =&gt; $grid-&gt;getColumns(),
+                'allowedOrders' =&gt; $grid-&gt;getAllowedOrders(),
+                'defaultLimit' =&gt; $grid-&gt;getDefaultLimit(),
+                'order' =&gt; $grid-&gt;getOrder(),
+                'prev' =&gt; $grid-&gt;prev(),
+                'next' =&gt; $grid-&gt;next(),
+                'urlPrev' =&gt; $grid-&gt;getUrl(['page' =&gt; $grid-&gt;prev()]),
+                'urlNext' =&gt; $grid-&gt;getUrl(['page' =&gt; $grid-&gt;next()]),
+                'urlPage' =&gt; $grid-&gt;getUrl(['page' =&gt; $grid-&gt;getPage()]),
+            ));
+        } else {
+            return new ViewModel(['grid' =&gt; $grid]);
+        }
+    }
+
+    public function createWithAngularAction()
+    {
+        return new ViewModel();
+    }
+
+    public function editWithAngularAction()
+    {
+        return new ViewModel();
+    }
+
+    public function getTestAction()
+    {
+        $model = $this-&gt;loadEntity();
+        $test = array(
+            'email' =&gt; $model-&gt;getEmail(),
+            'name' =&gt; $model-&gt;getName(),
+            'id' =&gt; $model-&gt;getId(),
+        );
+        return new JsonModel(['data' =&gt; $test]);
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,141 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Test\Entity;
+
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\ORM\Mapping as ORM;
+use Zend\Form\Annotation;
+
+/**
+ * Class Test
+ *
+ * @ORM\Entity(repositoryClass=&quot;Test\Repository\Test&quot;)
+ * @ORM\Table(name=&quot;test&quot;)
+ * @package                                            Test\Entity
+ */
+class Test
+{
+    /**
+     * @var int
+     * @ORM\Id
+     * @ORM\Column(type=&quot;integer&quot;, options={&quot;unsigned&quot;=true})
+     * @ORM\GeneratedValue(strategy=&quot;AUTO&quot;)
+     */
+    protected $id;
+
+    /**
+     * @var string
+     * @ORM\Column(type=&quot;string&quot;, unique=true, nullable=false, length=255)
+     */
+    protected $email;
+
+    /**
+     * @var string
+     * @Annotation\Type(&quot;Zend\Form\Element\Email&quot;)
+     * @Annotation\Required(false)
+     * @Annotation\Filter({&quot;name&quot;:&quot;StringTrim&quot;})
+     * @Annotation\Attributes({&quot;class&quot;:&quot;form-control&quot;})
+     * @Annotation\Validator({&quot;name&quot;:&quot;EmailAddress&quot;})
+     * @ORM\Column(type=&quot;string&quot;, nullable=false, length=255)
+     */
+    protected $name;
+
+    /**
+     * @param $id int
+     *
+     * @return void
+     */
+    public function setId($id)
+    {
+        $this-&gt;id = (int )$id;
+    }
+
+    /**
+     * @return int
+     */
+    public function getId()
+    {
+        return $this-&gt;id;
+    }
+
+    /**
+     * @param $email string
+     *
+     * @return void
+     */
+    public function setEmail($email)
+    {
+        $this-&gt;email = $email;
+    }
+
+    /**
+     * @return string
+     */
+    public function getEmail()
+    {
+        return $this-&gt;email;
+    }
+
+    /**
+     * @param $name string
+     *
+     * @return void
+     */
+    public function setName($name)
+    {
+        $this-&gt;name = $name;
+    }
+
+    /**
+     * @return string
+     */
+    public function getName()
+    {
+        return $this-&gt;name;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

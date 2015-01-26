@@ -1,0 +1,505 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Categories\Controller;
+
+use Doctrine\DBAL\Schema\View;
+use Fury\Mvc\Controller\AbstractCrudController;
+use Zend\View\Model\ViewModel;
+use Zend\View\Model\JsonModel;
+use Zend\Mvc\MvcEvent;
+use Zend\Form\Annotation\AnnotationBuilder;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Categories\Form\Filter;
+use DoctrineModule\Validator;
+use Categories\Validators;
+use Media\Form\ImageUpload;
+use Media\Service\File;
+use Categories\Entity\Categories;
+use Media\Form\Filter\ImageUploadInputFilter;
+
+class ManagementController extends AbstractCrudController
+{
+    /**
+     * {@inheritdoc}
+     */
+    public function onDispatch(MvcEvent $e)
+    {
+        parent::onDispatch($e);
+        $e-&gt;getApplication()
+            -&gt;getServiceManager()
+            -&gt;get('viewhelpermanager')
+            -&gt;get('headLink')
+            -&gt;appendStylesheet('module/categories/css/management.css');
+    }
+
+    /**
+     * @return array|ViewModel
+     */
+    public function indexAction()
+    {
+        $entityManager = $this
+            -&gt;getServiceLocator()
+            -&gt;get('Doctrine\ORM\EntityManager');
+        $repository = $entityManager-&gt;getRepository('Categories\Entity\Categories');
+
+        $currentRootCategory = null;
+        $categories = null;
+        if ($id = $this-&gt;params('id')) {
+            $currentRootCategory = $entityManager
+                -&gt;getRepository('Categories\Entity\Categories')
+                -&gt;findOneBy(['parentId' =&gt; null, 'id' =&gt; $id]);
+        }
+        $rootCategories = $entityManager
+            -&gt;getRepository('Categories\Entity\Categories')
+            -&gt;findBy(['parentId' =&gt; null], ['id' =&gt; 'ASC']);
+
+        if (!$currentRootCategory &amp;&amp; !empty($rootCategories)) {
+            $currentRootCategory = $rootCategories[0];
+        }
+        if ($currentRootCategory) {
+            $categories = $repository-&gt;findBy(['parentId' =&gt; $currentRootCategory-&gt;getId()], ['order' =&gt; 'ASC']);
+        }
+        $viewModel = new ViewModel([
+            'categories' =&gt; $categories,
+            'rootTree' =&gt; $rootCategories,
+            'currentRoot' =&gt; $currentRootCategory
+        ]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+
+        return $viewModel;
+    }
+
+    /**
+     * @return ViewModel
+     */
+    public function createAction()
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $repository = $entityManager-&gt;getRepository('Categories\Entity\Categories');
+        /** @var \Categories\Service\Categories $categoriesService */
+        $categoriesService = $this-&gt;getServiceLocator()-&gt;get('Categories\Service\Categories');
+
+        $form = $this-&gt;getCreateForm();
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form-&gt;setInputFilter(new Filter\CreateInputFilter($this-&gt;getServiceLocator()));
+            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+
+            if ($form-&gt;isValid()) {
+                $parentId = !$this-&gt;params()-&gt;fromRoute('parentId')
+                    ? null
+                    : $this-&gt;params()-&gt;fromRoute('parentId');
+                $aliasValid = new Validator\NoObjectExists([
+                    'object_repository' =&gt; $repository,
+                    'fields' =&gt; ['alias', 'parentId']
+                ]);
+                if ($aliasValid-&gt;isValid(
+                    ['alias' =&gt; $form-&gt;get('alias')-&gt;getValue(),
+                        'parentId' =&gt; $parentId]
+                )
+                ) {
+                    $category = $this-&gt;getEntity();
+                    $category-&gt;setParentId(!$parentId ? null : $repository-&gt;find($parentId));
+                    $category-&gt;setOrder($this-&gt;getMaxOrder($parentId));
+
+                    $hydrator = new DoctrineHydrator($entityManager);
+                    $hydrator-&gt;hydrate($form-&gt;getData(), $category);
+                    $entityManager-&gt;persist($category);
+                    $entityManager-&gt;flush();
+
+                    //Add image from session
+                    if ($categoriesService-&gt;ifImagesExist()) {
+                        $imageService = $this-&gt;getServiceLocator()-&gt;get('Media\Service\File');
+                        foreach ($categoriesService-&gt;getSession()-&gt;ids as $imageId) {
+                            $imageService-&gt;associateFileWithObject(
+                                $this-&gt;getServiceLocator()
+                                    -&gt;get('Doctrine\ORM\EntityManager')
+                                    -&gt;getRepository('Media\Entity\File')-&gt;find($imageId),
+                                $category
+                            );
+                        }
+                        $categoriesService-&gt;clearImages();
+                    }
+                    $this-&gt;flashMessenger()-&gt;addSuccessMessage('Category has been successfully created!');
+
+                    if (!$this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+                        return $this-&gt;redirect()
+                            -&gt;toRoute('categories/default', array('controller' =&gt; 'management', 'action' =&gt; 'index'));
+                    } else {
+                        return;
+                    }
+                } else {
+                    $form-&gt;get('alias')-&gt;setMessages(
+                        array(
+                            'errorMessageKey' =&gt; 'Alias must be unique in it\'s category!'
+                        )
+                    );
+                }
+
+            }
+        } else {
+            $categoriesService-&gt;clearImages();
+        }
+
+        $imageService = new File($this-&gt;getServiceLocator());
+        $viewModel = new ViewModel();
+        $viewModel-&gt;setVariables([
+            'form' =&gt; $form,
+            'ajax' =&gt; $this-&gt;getRequest()-&gt;isXmlHttpRequest(),
+            'scripts' =&gt; null,
+            'fileUpload' =&gt;
+                [
+                    'imageService' =&gt; $imageService,
+                    'module' =&gt; 'image-categories',
+                    'type' =&gt; \Media\Entity\File::IMAGE_FILETYPE,
+                    'id' =&gt; null
+                ]
+        ]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+
+        return $viewModel;
+    }
+
+    /**
+     * @return ViewModel
+     */
+    public function editAction()
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $repository = $entityManager-&gt;getRepository('Categories\Entity\Categories');
+
+        $form = $this-&gt;getEditForm();
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form-&gt;setInputFilter(new Filter\CreateInputFilter($this-&gt;getServiceLocator()));
+            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            $aliasValid = new Validators\NoObjectExists($entityManager-&gt;getRepository('Categories\Entity\Categories'));
+
+            if ($form-&gt;isValid()) {
+                $entity = $this-&gt;loadEntity();
+                if ($aliasValid-&gt;isValid(
+                    ['alias' =&gt; $form-&gt;get('alias')-&gt;getValue(), 'parentId' =&gt; $entity-&gt;getParentId()],
+                    $this-&gt;params()-&gt;fromRoute('id')
+                )
+                ) {
+                    $category = $form-&gt;getData();
+                    $category-&gt;setParentId(!$entity-&gt;getParentId() ? null : $repository-&gt;find($entity-&gt;getParentId()));
+                    $category-&gt;setOrder($entity-&gt;getOrder());
+                    $entityManager-&gt;persist($form-&gt;getData());
+                    $entityManager-&gt;flush();
+                    $this-&gt;getServiceLocator()
+                        -&gt;get('Categories\Service\Categories')
+                        -&gt;updateChildrenPath($form-&gt;getData());
+                    $this-&gt;flashMessenger()-&gt;addSuccessMessage('Category has been successfully edited!');
+
+                    if (!$this-&gt;getRequest()-&gt;isXmlHttpRequest()) {
+                        return $this-&gt;redirect()
+                            -&gt;toRoute('categories/default', array('controller' =&gt; 'management', 'action' =&gt; 'index'));
+                    } else {
+                        return;
+                    }
+                } else {
+                    $form-&gt;get('alias')-&gt;setMessages(
+                        array(
+                            'errorMessageKey' =&gt; 'Alias must be unique in its category!'
+                        )
+                    );
+                }
+            }
+        }
+
+        $imageService = new File($this-&gt;getServiceLocator());
+        $viewModel = new ViewModel();
+        $viewModel-&gt;setVariables([
+            'form' =&gt; $form,
+            'ajax' =&gt; $this-&gt;getRequest()-&gt;isXmlHttpRequest(),
+            'scripts' =&gt; ['image-categories'],
+            'fileUpload' =&gt;
+                [
+                    'imageService' =&gt; $imageService,
+                    'module' =&gt; 'image-categories',
+                    'type' =&gt; \Media\Entity\File::IMAGE_FILETYPE,
+                    'id' =&gt; $this-&gt;params()-&gt;fromRoute('id')
+                ]
+        ]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+
+        return $viewModel;
+    }
+
+    /**
+     * @return JsonModel
+     */
+    public function orderAction()
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $repository = $entityManager-&gt;getRepository('Categories\Entity\Categories');
+
+        $entityManager-&gt;getConnection()-&gt;beginTransaction();
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $tree = $this-&gt;getRequest()-&gt;getPost('tree');
+            $treeParent = $this-&gt;getRequest()-&gt;getPost('treeParent');
+            try {
+                $categories = json_decode($tree);
+                if (!$categories) {
+                    throw new \Exception('Categories tree is broken');
+                }
+                foreach ($categories as $node) {
+                    if (isset($node-&gt;item_id)) {
+                        $dbNode = $repository-&gt;findOneBy(['id' =&gt; $node-&gt;item_id]);
+
+                        if (!$node-&gt;parent_id) {
+                            $node-&gt;parent_id = $treeParent;
+                        }
+
+                        if (!$dbNode-&gt;getParentId()) {
+                            throw new \Exception();
+                        }
+                        $parentId = $dbNode-&gt;getParentId()-&gt;getId();
+                        if ($parentId != $node-&gt;parent_id &amp;&amp; $node-&gt;parent_id) {
+                            $dbNode-&gt;setParentId($repository-&gt;findOneBy(['id' =&gt; $node-&gt;parent_id]));
+                        }
+
+                        if ($dbNode-&gt;getOrder() != $node-&gt;order &amp;&amp; $node-&gt;order) {
+                            $dbNode-&gt;setOrder($node-&gt;order);
+                        }
+                        $entityManager-&gt;persist($dbNode);
+                        $entityManager-&gt;flush();
+
+                        $aliasValid = new Validators\NoObjectExists($repository);
+                        if (!$aliasValid-&gt;isValid(
+                            ['alias' =&gt; $dbNode-&gt;getAlias(), 'parentId' =&gt; $dbNode-&gt;getParentId()],
+                            $node-&gt;item_id
+                        )
+                        ) {
+                            throw new \Exception('Order has been failed!');
+                        }
+
+                    }
+                }
+                $entityManager-&gt;getConnection()-&gt;commit();
+                $returnJson = new JsonModel(['success' =&gt; ['Order has been successfully saved!']]);
+            } catch (\Exception $e) {
+                $entityManager-&gt;getConnection()-&gt;rollback();
+                $returnJson = new JsonModel(['error' =&gt; ['Order has been failed!']]);
+            }
+            return $returnJson;
+        }
+        return $this-&gt;redirect()
+            -&gt;toRoute('categories/default', array('controller' =&gt; 'management', 'action' =&gt; 'index'));
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getCreateForm()
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $builder = new AnnotationBuilder($entityManager);
+
+        return $builder-&gt;createForm($this-&gt;getEntity());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getEditForm()
+    {
+        $entityManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $builder = new AnnotationBuilder($entityManager);
+        $category = $this-&gt;loadEntity();
+
+        if ($category-&gt;getParentId()) {
+            $parentId = $category-&gt;getParentId()-&gt;getId();
+            $category-&gt;setParentId($parentId);
+        }
+
+        $form = $builder-&gt;createForm($this-&gt;getEntity());
+        $form-&gt;setHydrator(new DoctrineHydrator($entityManager));
+        $form-&gt;bind($category);
+
+        return $form;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function getEntity()
+    {
+        return new Categories();
+    }
+
+    /**
+     * Returns maximum order field value within category siblings.
+     *
+     * @param  $parentId
+     * @return int|mixed
+     */
+    private function getMaxOrder($parentId)
+    {
+        $repository = $this-&gt;getServiceLocator()
+            -&gt;get('Doctrine\ORM\EntityManager')
+            -&gt;getRepository('Categories\Entity\Categories');
+        $orders = array();
+        if (!$siblings = $repository-&gt;findBy(['parentId' =&gt; $parentId])) {
+            $siblings = $repository-&gt;findBy(['parentId' =&gt; null]);
+        }
+        foreach ($siblings as $sibling) {
+            $orders[] = $sibling-&gt;getOrder();
+        }
+
+        if (count($orders) &gt; 0) {
+            $order = max($orders) + 1;
+        } else {
+            $order = 1;
+        }
+
+        return $order;
+    }
+
+    /**
+     * Advanced avatar uploader Blueimp UI
+     */
+    public function startImageUploadAction()
+    {
+        $repository = $this-&gt;getServiceLocator()
+            -&gt;get('Doctrine\ORM\EntityManager')
+            -&gt;getRepository('Categories\Entity\Categories');
+        /** @var \Categories\Service\Categories $categoriesService */
+        $categoriesService = $this-&gt;getServiceLocator()-&gt;get('Categories\Service\Categories');
+
+        $id = $this-&gt;params()-&gt;fromRoute('id');
+        if ($id) {
+            $category = $repository-&gt;find($id);
+        }
+
+        $imageService = $this-&gt;getServiceLocator()-&gt;get('Media\Service\File');
+        $blueimpService = $this-&gt;getServiceLocator()-&gt;get('Media\Service\Blueimp');
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form = new ImageUpload('upload-image');
+            $inputFilter = new ImageUploadInputFilter();
+            $form-&gt;setInputFilter($inputFilter-&gt;getInputFilter());
+
+            $request = $this-&gt;getRequest();
+            $post = array_merge_recursive(
+                $request-&gt;getPost()-&gt;toArray(),
+                $request-&gt;getFiles()-&gt;toArray()
+            );
+            $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager')-&gt;getConnection()-&gt;beginTransaction();
+            $form-&gt;setData($post);
+
+            if ($form-&gt;isValid()) {
+                if (!$id) {
+                    $image = $imageService-&gt;writeFile($form);
+                    $categoriesService-&gt;addImageToSession($image);
+                } else {
+                    $image = $imageService-&gt;createFile($form, $category);
+                }
+                $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager')-&gt;getConnection()-&gt;commit();
+
+                $dataForJson = $blueimpService-&gt;displayUploadedFile($image, '/categories/management/delete-image/');
+            } else {
+                $messages = $form-&gt;getMessages();
+                $messages = array_shift($messages);
+                $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager')-&gt;getConnection()-&gt;rollBack();
+                $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager')-&gt;close();
+
+                $dataForJson = ['files' =&gt; [
+                    [
+                        'name' =&gt; $form-&gt;get('image')-&gt;getValue()['name'],
+                        'error' =&gt; array_shift($messages)
+                    ]
+                ]];
+            }
+        } else {
+            $images = [];
+            if ($id) {
+                $images = $category-&gt;getImages();
+            } else {
+                if ($categoriesService-&gt;ifImagesExist()) {
+                    foreach ($categoriesService-&gt;getSession()-&gt;ids as $imageId) {
+                        array_push(
+                            $images,
+                            $this-&gt;getServiceLocator()
+                                -&gt;get('Doctrine\ORM\EntityManager')
+                                -&gt;getRepository('Media\Entity\File')-&gt;find($imageId)
+                        );
+                    }
+                }
+            }
+            $dataForJson = $blueimpService-&gt;displayUploadedFiles(
+                $images,
+                '/categories/management/delete-image/'
+            );
+        }
+
+        return new JsonModel($dataForJson);
+    }
+
+    public function deleteImageAction()
+    {
+        /** @var \Categories\Service\Categories $categoriesService */
+        $categoriesService = $this-&gt;getServiceLocator()-&gt;get('Categories\Service\Categories');
+        $idImageSes = array_search(
+            $this-&gt;getEvent()-&gt;getRouteMatch()-&gt;getParam('id'),
+            $categoriesService-&gt;getSession()-&gt;ids
+        );
+        if ($idImageSes !== false) {
+            unset($categoriesService-&gt;getSession()-&gt;ids[$idImageSes]);
+            $this-&gt;getServiceLocator()-&gt;get('Media\Service\File')
+                -&gt;deleteFileEntity($this-&gt;getEvent()-&gt;getRouteMatch()-&gt;getParam('id'));
+        } else {
+            $this-&gt;getServiceLocator()-&gt;get('Media\Service\File')
+                -&gt;deleteFile($this-&gt;getEvent()-&gt;getRouteMatch()-&gt;getParam('id'));
+        }
+
+        return $this-&gt;getServiceLocator()-&gt;get('Media\Service\Blueimp')
+            -&gt;deleteFileJson($this-&gt;getEvent()-&gt;getRouteMatch()-&gt;getParam('id'));
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

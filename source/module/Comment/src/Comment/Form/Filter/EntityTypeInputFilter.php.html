@@ -1,0 +1,170 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Comment\Form\Filter;
+
+use Zend\InputFilter\InputFilter;
+use Zend\ServiceManager\ServiceManager;
+use DoctrineModule\Validator\UniqueObject;
+use Zend\Db\Adapter;
+
+class EntityTypeInputFilter extends InputFilter
+{
+    /** @var  ServiceManager */
+    protected $sm;
+
+    /** @var \Comment\Entity\EntityType */
+    protected $entityType;
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;sm = $sm;
+        $this-&gt;aliasEntity();
+        $this-&gt;entity();
+        $this-&gt;description();
+    }
+
+    /**
+     * @return $this
+     */
+    protected function aliasEntity()
+    {
+        $recordUniqueValidator = new UniqueObject(
+            array(
+                'object_repository' =&gt; $this-&gt;sm-&gt;get('Doctrine\ORM\EntityManager')
+                    -&gt;getRepository('Comment\Entity\EntityType'),
+                'fields' =&gt; array('aliasEntity'),
+                'object_manager' =&gt; $this-&gt;sm-&gt;get('Doctrine\ORM\EntityManager'),
+            )
+        );
+        $recordUniqueValidator-&gt;setMessage(
+            'Entity type with this alias already exists'
+        );
+
+        $this-&gt;add(array(
+            'name' =&gt; 'aliasEntity',
+            'required' =&gt; true,
+            'filters' =&gt; array(
+                array('name' =&gt; 'StripTags'),
+                array('name' =&gt; 'StringTrim'),
+            ),
+            'validators' =&gt; array(
+                array(
+                    'name' =&gt; 'Regex',
+                    'options' =&gt; array(
+                        'pattern' =&gt; '/^[a-zA-Z-_]*$/',
+                        'message' =&gt; 'Entity type contains invalid characters'
+                    ),
+                ),
+                $recordUniqueValidator
+            ),
+        ));
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function entity()
+    {
+        $recordUniqueValidator = new UniqueObject(
+            array(
+                'object_repository' =&gt; $this-&gt;sm-&gt;get('Doctrine\ORM\EntityManager')
+                    -&gt;getRepository('Comment\Entity\EntityType'),
+                'fields' =&gt; array('entity'),
+                'object_manager' =&gt; $this-&gt;sm-&gt;get('Doctrine\ORM\EntityManager'),
+            )
+        );
+        $recordUniqueValidator-&gt;setMessage(
+            'Entity type with this entity already exists'
+        );
+
+        $this-&gt;add(array(
+            'name' =&gt; 'entity',
+            'required' =&gt; true,
+            'filters' =&gt; array(
+                array('name' =&gt; 'StripTags'),
+                array('name' =&gt; 'StringTrim'),
+            ),
+            'validators' =&gt; array(
+                $recordUniqueValidator
+            ),
+        ));
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function description()
+    {
+        $this-&gt;add(array(
+            'name' =&gt; 'description',
+            'required' =&gt; true,
+            'filters' =&gt; array(
+                array('name' =&gt; 'StripTags'),
+                array('name' =&gt; 'StringTrim'),
+            ),
+            'validators' =&gt; array(
+                array(
+                    'name' =&gt; 'StringLength',
+                    'options' =&gt; array(
+                        'min' =&gt; 5,
+                    ),
+                ),
+            ),
+
+        ));
+
+        return $this;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

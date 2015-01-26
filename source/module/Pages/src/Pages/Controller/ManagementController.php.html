@@ -1,0 +1,120 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Zend Framework (http://framework.zend.com/)
+ *
+ * @link      http://github.com/zendframework/ZendSkeletonApplication for the canonical source repository
+ * @copyright Copyright (c) 2005-2014 Zend Technologies USA Inc. (http://www.zend.com)
+ * @license   http://framework.zend.com/license/new-bsd New BSD License
+ */
+
+namespace Pages\Controller;
+
+use Pages\Grid\Grid;
+use Fury\Mvc\Controller\AbstractCrudController;
+use Zend\View\Model\ViewModel;
+use Pages\Form\Create;
+use Pages\Entity\Pages;
+use Zend\Mvc\MvcEvent;
+
+/**
+ * Class ManagementController
+ * @package Pages\Controller
+ */
+class ManagementController extends AbstractCrudController
+{
+    /**
+     * {@inheritdoc}
+     */
+    public function onDispatch(MvcEvent $e)
+    {
+        parent::onDispatch($e);
+    }
+
+    /**
+     * @return mixed|\Pages\Entity\Pages
+     */
+    protected function getEntity()
+    {
+        /**
+         * @var $entity = \Pages\Entity\Pages $entity
+         */
+        $entity = new Pages();
+        $entity-&gt;setAuthorId($this-&gt;identity()-&gt;getUser()-&gt;getId());
+        return $entity;
+    }
+
+    /**
+     * @return mixed|Create
+     */
+    protected function getCreateForm()
+    {
+        return new Create(null, ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+    }
+
+    /**
+     * @return mixed|Create
+     */
+    protected function getEditForm()
+    {
+        $form = new Create(null, ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+        $form-&gt;get('submit')-&gt;setValue('Save');
+        return $form;
+    }
+
+    /**
+     * @return array|ViewModel
+     */
+    public function indexAction()
+    {
+        $sm = $this-&gt;getServiceLocator();
+        $grid = new Grid($sm);
+        $viewModel = new ViewModel(['grid' =&gt; $grid]);
+        $viewModel-&gt;setTerminal($this-&gt;getRequest()-&gt;isXmlHttpRequest());
+        return $viewModel;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

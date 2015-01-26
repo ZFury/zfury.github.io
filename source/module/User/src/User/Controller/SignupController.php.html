@@ -1,0 +1,148 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace User\Controller;
+
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use User\Form;
+use User\Service;
+
+class SignupController extends AbstractActionController
+{
+    /**
+     * Sign Up action
+     *
+     * @return array|\Zend\Http\Response|ViewModel
+     * @throws \Exception
+     */
+    public function indexAction()
+    {
+        $form = new Form\SignupForm('create-user', ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            if ($form-&gt;isValid()) {
+                $userService = new Service\User($this-&gt;getServiceLocator());
+                try {
+                    $user = $userService-&gt;create($form);
+                    $this-&gt;flashMessenger()-&gt;addSuccessMessage(
+                        'You must confirm your email address to complete registration'
+                    );
+
+                    return $this-&gt;redirect()-&gt;toRoute('home');
+                } catch (\Exception $exception) {
+                    throw $exception;
+                }
+            }
+        }
+
+        return new ViewModel(['form' =&gt; $form, 'serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+    }
+
+    /**
+     * @return ViewModel
+     * @throws \Exception
+     */
+    public function forgotPasswordAction()
+    {
+        $form = new Form\ForgotPasswordForm('forgot-password', ['serviceLocator' =&gt; $this-&gt;getServiceLocator()]);
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            if ($form-&gt;isValid()) {
+                $userService = new Service\User($this-&gt;getServiceLocator());
+                try {
+                    $userService-&gt;forgotPassword($form);
+                    $this-&gt;flashMessenger()-&gt;addSuccessMessage(
+                        'The confirmation email to reset your password is sent. Please check your email.'
+                    );
+
+                    return $this-&gt;redirect()-&gt;toRoute('home');
+                } catch (\Exception $exception) {
+                    throw $exception;
+                }
+            }
+        }
+
+        return new ViewModel(['form' =&gt; $form]);
+    }
+
+    /**
+     * Confirm email
+     *
+     * @return \Zend\Http\Response
+     */
+    public function confirmAction()
+    {
+        $confirm = $this-&gt;params('confirm');
+        try {
+            if (!$confirm) {
+                //$this-&gt;getResponse()-&gt;setStatusCode(404);
+                throw new \Exception('Invalid confirmation code');
+            }
+            /**
+             * @var \Doctrine\ORM\EntityManager $objectManager
+             */
+            $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+            $user = $objectManager
+                -&gt;getRepository('User\Entity\User')
+                -&gt;findOneBy(array('confirm' =&gt; $confirm));
+            if (!$user) {
+                throw new \Exception('Invalid confirmation code');
+            }
+            $user-&gt;activate();
+            $objectManager-&gt;persist($user);
+            $objectManager-&gt;flush();
+            $this-&gt;flashMessenger()-&gt;addSuccessMessage(&quot;You've successfully activated your account&quot;);
+        } catch (\Exception $exception) {
+            $this-&gt;flashMessenger()-&gt;addErrorMessage($exception-&gt;getMessage());
+        }
+
+        return $this-&gt;redirect()-&gt;toRoute('home');
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

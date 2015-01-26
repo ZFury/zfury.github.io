@@ -1,0 +1,133 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/3/14
+ * Time: 11:09 AM
+ */
+
+namespace Test\Controller;
+
+use Media\Service\File;
+use Zend\View\Model\JsonModel;
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use Media\Form\AudioUpload;
+use Media\Form\Filter\AudioUploadInputFilter;
+
+class AudioController extends AbstractActionController
+{
+    /**
+     * @return ViewModel
+     */
+    public function uploadAudioAction()
+    {
+        $fileService = new File($this-&gt;getServiceLocator());
+        $this-&gt;layout('layout/dashboard/dashboard');
+        return new ViewModel(['fileService' =&gt; $fileService, 'type' =&gt; \Media\Entity\File::AUDIO_FILETYPE]);
+    }
+
+    /**
+     * Advanced avatar uploader Blueimp UI
+     */
+    public function startAudioUploadAction()
+    {
+        $user = $this-&gt;identity()-&gt;getUser();
+        $fileService = $this-&gt;getServiceLocator()-&gt;get('Media\Service\File');
+        $blueimpService = $this-&gt;getServiceLocator()-&gt;get('Media\Service\Blueimp');
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $form = new AudioUpload();
+            $inputFilter = new AudioUploadInputFilter();
+            $form-&gt;setInputFilter($inputFilter-&gt;getInputFilter());
+
+            $request = $this-&gt;getRequest();
+            $post = array_merge_recursive(
+                $request-&gt;getPost()-&gt;toArray(),
+                $request-&gt;getFiles()-&gt;toArray()
+            );
+            $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager')-&gt;getConnection()-&gt;beginTransaction();
+            $form-&gt;setData($post);
+
+            if ($form-&gt;isValid()) {
+                $audio = $fileService-&gt;createFile($form, $this-&gt;identity()-&gt;getUser());
+                $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager')-&gt;getConnection()-&gt;commit();
+                $dataForJson = $blueimpService-&gt;displayUploadedFile($audio, '/test/audio/delete-audio/');
+            } else {
+                $messages = $form-&gt;getMessages();
+                $messages = array_shift($messages);
+                $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager')-&gt;getConnection()-&gt;rollBack();
+                $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager')-&gt;close();
+
+                $dataForJson = [ 'files' =&gt; [
+                        [
+                            'name' =&gt; $form-&gt;get('audio')-&gt;getValue()['name'],
+                            'error' =&gt; array_shift($messages)
+                        ]
+                ]];
+            }
+        } else {
+            $dataForJson = $blueimpService-&gt;displayUploadedFiles(
+                $user-&gt;getAudios(),
+                '/test/audio/delete-audio/'
+            );
+        }
+
+        return new JsonModel($dataForJson);
+    }
+
+    /**
+     * @return mixed
+     */
+    public function deleteAudioAction()
+    {
+        $this-&gt;getServiceLocator()-&gt;get('Media\Service\File')
+            -&gt;deleteFile($this-&gt;getEvent()-&gt;getRouteMatch()-&gt;getParam('id'));
+        return $this-&gt;getServiceLocator()-&gt;get('Media\Service\Blueimp')
+            -&gt;deleteFileJson($this-&gt;getEvent()-&gt;getRouteMatch()-&gt;getParam('id'));
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

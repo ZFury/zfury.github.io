@@ -1,0 +1,215 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexfloppy
+ */
+
+namespace User\Controller;
+
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Zend\Http\Response;
+use Zend\Stdlib;
+use Fury\Test\Controller\ControllerTestCase;
+
+/**
+ * Class ManagementControllerTest
+ * @package User\Controller
+ */
+class ManagementControllerTest extends ControllerTestCase
+{
+    /**
+     * @var bool
+     */
+    protected $traceError = true;
+
+    /**
+     * @var array
+     */
+    protected $userData = [
+        'name' =&gt; 'testUser',
+        'email' =&gt; 'testUser@nix.com',
+        'password' =&gt; '123456',
+        'repeat-password' =&gt; '123456',
+        'role' =&gt; 'user',
+        'status' =&gt; 'active'
+    ];
+
+    /**
+     *  migration up
+     */
+    public static function setUpBeforeClass()
+    {
+        exec('vendor/doctrine/doctrine-module/bin/doctrine-module orm:schema-tool:update --force');
+    }
+
+    /**
+     * migration down
+     */
+    public static function tearDownAfterClass()
+    {
+        exec('vendor/doctrine/doctrine-module/bin/doctrine-module orm:schema-tool:drop --force');
+    }
+
+    /**
+     * @throws \User\Exception\AuthException
+     */
+    protected function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include 'config/application.config.php'
+        );
+        $this-&gt;setTraceError(true);
+        parent::setUp();
+
+        $this-&gt;setupAdmin();
+    }
+
+    /**
+     *  remove entity
+     */
+    public function tearDown()
+    {
+        $this-&gt;removeUser($this-&gt;userData);
+    }
+
+    /**
+     * index action access
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testIndexActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/user/management/index');
+        $this-&gt;assertResponseStatusCode(200);
+    }
+
+    /**
+     * create action access
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testCreateActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/user/management/create');
+        $this-&gt;assertEquals(200, $this-&gt;getResponse()-&gt;getStatusCode());
+    }
+
+    /**
+     * test create action
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testCreateAction()
+    {
+        $parameters = new Stdlib\Parameters($this-&gt;userData);
+
+        $this-&gt;getRequest()-&gt;setMethod('POST')
+            -&gt;setPost($parameters);
+
+        $this-&gt;dispatch('/user/management/create');
+        $this-&gt;assertEquals(302, $this-&gt;getResponse()-&gt;getStatusCode());
+        $this-&gt;assertRedirectTo('/user/management');
+    }
+
+    /**
+     * test edit action
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testEditAction()
+    {
+        //create
+        $this-&gt;createUser($this-&gt;userData);
+
+        //get
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        /** @var \User\Entity\User $entity */
+        $entity = $objectManager-&gt;getRepository('User\Entity\User')
+            -&gt;findOneBy(array('email' =&gt; $this-&gt;userData['email']));
+
+        //dispatch edit + post data
+        $parameters = new Stdlib\Parameters(
+            [
+                'id' =&gt; $entity-&gt;getId(),
+                'email' =&gt; $entity-&gt;getEmail(),
+                'displayName' =&gt; $entity-&gt;getDisplayName(),
+                'password' =&gt; $this-&gt;userData['email'],
+                'repeat-password' =&gt; $this-&gt;userData['email'],
+                'role' =&gt; $entity-&gt;getRole(),
+                'status' =&gt; $entity-&gt;getStatus()
+            ]
+        );
+
+        $this-&gt;getRequest()-&gt;setMethod('POST')
+            -&gt;setPost($parameters);
+
+        $editPath = '/user/management/edit/' . $entity-&gt;getId();
+        $this-&gt;dispatch($editPath);
+
+        $this-&gt;assertEquals(302, $this-&gt;getResponse()-&gt;getStatusCode());
+        $this-&gt;assertRedirectTo('/user/management');
+    }
+
+    /**
+     * test delete action
+     *
+     * @throws \PHPUnit_Framework_ExpectationFailedException
+     */
+    public function testDeleteAction()
+    {
+        //create
+        $entity = $this-&gt;createUser($this-&gt;userData);
+
+        // remove
+        $deletePath = '/user/management/delete/' . $entity-&gt;getId();
+        $this-&gt;dispatch($deletePath);
+
+        $this-&gt;assertEquals(302, $this-&gt;getResponse()-&gt;getStatusCode());
+        $this-&gt;assertRedirectTo('/user/management');
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

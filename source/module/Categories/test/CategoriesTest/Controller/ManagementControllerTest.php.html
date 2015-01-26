@@ -1,0 +1,271 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: babich
+ * Date: 28.11.14
+ * Time: 13:06
+ */
+
+namespace CategoriesTest\Controller;
+
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Zend\Http\Response;
+use Zend\Stdlib;
+use Fury\Test\Controller\ControllerTestCase;
+
+/**
+ * Class ManagementControllerTest
+ * @package CategoriesTest\Controller
+ */
+class ManagementControllerTest extends ControllerTestCase
+{
+    /**
+     * @var bool
+     */
+    protected $traceError = true;
+
+    /**
+     * @var array
+     */
+    protected $userData = [
+        'name' =&gt; 'adminTest1',
+        'email' =&gt; 'aaa@gmail.com',
+        'password' =&gt; '123456',
+    ];
+
+    /**
+     * @var array
+     */
+    protected $categoryData = [
+        'name' =&gt; 'default',
+        'alias' =&gt; 'default',
+        'order' =&gt; '1',
+        'parentId' =&gt; '',
+    ];
+
+    /**
+     *  Migration up
+     */
+    public static function setUpBeforeClass()
+    {
+        exec('vendor/bin/doctrine-module orm:schema-tool:update --force');
+    }
+
+    /**
+     * Migration down
+     */
+    public static function tearDownAfterClass()
+    {
+        exec('vendor/bin/doctrine-module orm:schema-tool:drop --force');
+    }
+
+    /**
+     * Set up
+     */
+    public function setUp()
+    {
+        $this-&gt;setApplicationConfig(
+            include 'config/application.config.php'
+        );
+        $this-&gt;setTraceError(true);
+        parent::setUp();
+
+        $this-&gt;setupAdmin();
+    }
+
+    public function testIndexActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/categories/management');
+        $this-&gt;assertResponseStatusCode(200);
+
+        $this-&gt;assertModuleName('Categories');
+        $this-&gt;assertControllerName('Categories\Controller\Management');
+        $this-&gt;assertControllerClass('ManagementController');
+        $this-&gt;assertMatchedRouteName('categories/default');
+    }
+
+    public function testCreateActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/categories/management/create');
+        $this-&gt;assertResponseStatusCode(200);
+
+        $this-&gt;assertModuleName('Categories');
+        $this-&gt;assertControllerName('Categories\Controller\Management');
+        $this-&gt;assertControllerClass('ManagementController');
+        $this-&gt;assertMatchedRouteName('categories/create');
+    }
+
+    public function testOrderActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/categories/management/order');
+        $this-&gt;assertResponseStatusCode(302);
+        $this-&gt;assertRedirectTo('/categories/management/index');
+    }
+
+    public function testCreateActionRedirectsAfterValidPost()
+    {
+        $postData = array(
+            'name' =&gt; 'another',
+            'alias' =&gt; 'another',
+        );
+        $this-&gt;dispatch('/categories/management/create', 'POST', $postData);
+        $this-&gt;assertResponseStatusCode(302);
+
+        $this-&gt;assertRedirectTo('/categories/management/index');
+    }
+
+    public function testEditActionCanBeAccessed()
+    {
+        $this-&gt;dispatch('/categories/management/edit/1');
+        $this-&gt;assertResponseStatusCode(200);
+
+        $this-&gt;assertModuleName('Categories');
+        $this-&gt;assertControllerName('Categories\Controller\Management');
+        $this-&gt;assertControllerClass('ManagementController');
+        $this-&gt;assertMatchedRouteName('categories/default');
+    }
+
+    public function testEditActionRedirectsAfterValidPost()
+    {
+        /**
+         * @var \Categories\Entity\Categories $category
+         */
+        $category = $this-&gt;createCategory($this-&gt;categoryData);
+
+        $postData = array(
+            'name' =&gt; 'edited',
+            'alias' =&gt; $category-&gt;getAlias(),
+        );
+        $this-&gt;dispatch('/categories/management/edit/' . $category-&gt;getId(), 'POST', $postData);
+        $this-&gt;assertResponseStatusCode(302);
+
+        $this-&gt;assertRedirectTo('/categories/management/index');
+
+        $this-&gt;removeCategory($category);
+    }
+
+    public function testOrderAction()
+    {
+        $subCategoryData1 = [
+            'name' =&gt; 'default1',
+            'alias' =&gt; 'default1',
+            'order' =&gt; '3',
+            'parentId' =&gt; '',
+        ];
+        $category1 = $this-&gt;createCategory($subCategoryData1);
+
+        $subCategoryData2 = [
+            'name' =&gt; 'default2',
+            'alias' =&gt; 'default2',
+            'order' =&gt; '4',
+            'parentId' =&gt; $category1-&gt;getId(),
+        ];
+        $category2 = $this-&gt;createCategory($subCategoryData2);
+
+        $json = json_encode(
+            [['item_id' =&gt; null, &quot;parent_id&quot; =&gt; 'none', &quot;depth&quot; =&gt; 0, &quot;left&quot; =&gt; 1, &quot;right&quot; =&gt; 4],
+                ['item_id' =&gt; $category2-&gt;getId(),
+                    &quot;parent_id&quot; =&gt; null,
+                    &quot;depth&quot; =&gt; 1,
+                    &quot;left&quot; =&gt; 2,
+                    &quot;right&quot; =&gt; 3,
+                    &quot;order&quot; =&gt; 1
+                ],
+            ]
+        );
+        $postData = [
+            'tree' =&gt; $json,
+            'treeParent' =&gt; 1,
+        ];
+
+        $this-&gt;dispatch('/categories/management/order', 'POST', $postData);
+        $this-&gt;assertResponseHeaderContains('Content-Type', 'application/json; charset=utf-8');
+        $this-&gt;assertJson($this-&gt;getResponse()-&gt;getContent());
+    }
+
+    /**
+     * Creates new category.
+     *
+     * @param  $categoryData
+     * @return \Categories\Entity\Categories
+     */
+    public function createCategory($categoryData)
+    {
+        /**
+         * @var \Doctrine\ORM\EntityManager $objectManager
+         */
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        //        $category = $this-&gt;getApplicationServiceLocator()-&gt;get('Categories\Entity\Categories');
+        $category = new \Categories\Entity\Categories();
+        $objectManager-&gt;getConnection()-&gt;beginTransaction();
+        $hydrator = new DoctrineHydrator($objectManager);
+        $hydrator-&gt;hydrate($categoryData, $category);
+        $objectManager-&gt;persist($category);
+        $objectManager-&gt;flush();
+        $objectManager-&gt;getConnection()-&gt;commit();
+        $objectManager-&gt;clear();
+
+        return $category;
+    }
+
+    /**
+     * Deletes category.
+     *
+     * @param \Categories\Entity\Categories $detachedEntity
+     */
+    public function removeCategory(\Categories\Entity\Categories $detachedEntity)
+    {
+        /**
+         * @var \Doctrine\ORM\EntityManager $objectManager
+         */
+        $objectManager = $this-&gt;getApplicationServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        $category = $objectManager-&gt;merge($detachedEntity);
+        $objectManager-&gt;remove($category);
+        $objectManager-&gt;flush();
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,222 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Mail\Service;
+
+use Zend\ServiceManager\ServiceManager;
+use Zend\Mvc\Controller\Plugin\Url;
+use DoctrineModule\Stdlib\Hydrator\DoctrineObject as DoctrineHydrator;
+use Doctrine\ORM\EntityNotFoundException;
+use Zend\Mime\Message as MimeMessage;
+use Zend\Mime\Part as MimePart;
+use \Zend\Mime\Mime;
+use Zend\Mail\AddressList;
+use \User\Entity\User;
+
+/**
+ * Class Mail
+ * @package Mail\Service
+ */
+class Mail
+{
+    /**
+     * @var null|\Zend\ServiceManager\ServiceManager
+     */
+    protected $serviceManager = null;
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;serviceManager = $sm;
+    }
+
+    /**
+     * @return null|ServiceManager
+     */
+    public function getServiceLocator()
+    {
+        return $this-&gt;serviceManager;
+    }
+
+    /**
+     * @return \Doctrine\ORM\EntityManager
+     */
+    public function getObjectManager()
+    {
+        return $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+    }
+
+    /**
+     * @param $alias
+     * @return mixed
+     * @throws EntityNotFoundException
+     */
+    public function getTemplate($alias)
+    {
+        $objectManager = $this-&gt;getServiceLocator()-&gt;get('Doctrine\ORM\EntityManager');
+        if (!$mailTemplate = $objectManager-&gt;getRepository('Mail\Entity\Mail')-&gt;findOneBy(['alias' =&gt; $alias])) {
+            throw new EntityNotFoundException(&quot;Template by name '{$alias}' not found&quot;);
+        }
+        return $mailTemplate;
+    }
+
+    /**
+     * @param \User\Entity\User $user
+     * @throws EntityNotFoundException
+     */
+    public function signUpMail(User $user)
+    {
+        /** @var \Mail\Entity\Mail $template */
+        $template = $this-&gt;getTemplate('sign-up');
+
+        //prepare registration url
+        $hostUrl = $this-&gt;getServiceLocator()-&gt;get('ViewHelperManager')-&gt;get('ServerUrl')-&gt;setPort(80)-&gt;__invoke();
+        $url = $this-&gt;getServiceLocator()-&gt;get('ViewHelperManager')-&gt;get('Url')-&gt;__invoke(
+            'user/default',
+            ['controller' =&gt; 'signup', 'action' =&gt; 'confirm']
+        );
+        $confirmUrl = $hostUrl . $url . '/' . $user-&gt;getConfirm();
+
+        //assign url to the template
+        $this-&gt;assign($template, 'confirm', $confirmUrl);
+
+        $message = $this-&gt;prepareMessage($template, $user);
+
+        $this-&gt;send($message);
+    }
+
+    /**
+     * Send forgot password email
+     *
+     */
+    public function forgotPassword(User $user)
+    {
+        /** @var \Mail\Entity\Mail $template */
+        $template = $this-&gt;getTemplate('forgot-password');
+
+        //prepare forgot-password url
+        $hostUrl = $this-&gt;getServiceLocator()-&gt;get('ViewHelperManager')-&gt;get('ServerUrl')-&gt;setPort(80)-&gt;__invoke();
+        $url = $this-&gt;getServiceLocator()-&gt;get('ViewHelperManager')-&gt;get('Url')-&gt;__invoke(
+            'user/default',
+            ['controller' =&gt; 'auth', 'action' =&gt; 'recover-password']
+        );
+        $confirmUrl = $hostUrl . $url . '/' . $user-&gt;getConfirm();
+
+        //assign url to the template
+        $this-&gt;assign($template, 'reset-password-link', $confirmUrl);
+
+        $message = $this-&gt;prepareMessage($template, $user);
+
+        $this-&gt;send($message);
+    }
+
+    /**
+     * @param \Mail\Entity\Mail $template
+     * @param \User\Entity\User $user $user
+     * @return \Zend\Mail\Message
+     */
+    public function prepareMessage($template, $user)
+    {
+        $message = $this-&gt;getServiceLocator()-&gt;get('mail.message');
+        $message
+            -&gt;setFrom($template-&gt;getFromEmail(), $template-&gt;getFromName())
+            -&gt;setTo($user-&gt;getEmail())
+            -&gt;setSubject($template-&gt;getSubject())
+            -&gt;setBody($this-&gt;prepareBody($template));
+
+        return $message;
+    }
+
+    /**
+     * @param \Mail\Entity\Mail $template $template
+     * @return MimeMessage
+     */
+    public function prepareBody($template)
+    {
+        $text = new MimePart($template-&gt;getBodyText());
+        $text-&gt;type = Mime::TYPE_TEXT;
+        $text-&gt;charset = &quot;UTF-8&quot;;
+
+        $html = new MimePart($template-&gt;getBodyHtml());
+        $html-&gt;type = Mime::TYPE_HTML;
+        $html-&gt;encoding = Mime::ENCODING_BASE64;
+        $html-&gt;charset = &quot;UTF-8&quot;;
+
+        $body = new MimeMessage();
+        $body-&gt;setParts([$text, $html]);
+
+        return $body;
+    }
+
+    /**
+     * @param $message
+     * @return mixed
+     */
+    public function send($message)
+    {
+        $transport = $this-&gt;getServiceLocator()-&gt;get('mail.transport');
+        return $transport-&gt;send($message);
+    }
+
+    /**
+     * @param \Mail\Entity\Mail $template $template
+     * @param $name
+     * @param $value
+     * @return mixed
+     */
+    public function assign($template, $name, $value)
+    {
+        //TODO use hydrator
+        $template-&gt;setSubject(str_replace(&quot;%&quot; . $name . &quot;%&quot;, $value, $template-&gt;getSubject()));
+        $template-&gt;setBodyHtml(str_replace(&quot;%&quot; . $name . &quot;%&quot;, $value, $template-&gt;getBodyHtml()));
+        $template-&gt;setBodyText(str_replace(&quot;%&quot; . $name . &quot;%&quot;, $value, $template-&gt;getBodyText()));
+
+        return $template;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

@@ -1,0 +1,133 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Categories\Form\Filter;
+
+use Zend\InputFilter\InputFilter;
+use Zend\ServiceManager\ServiceManager;
+
+class CreateInputFilter extends InputFilter
+{
+    /**
+     * @var  ServiceManager
+     */
+    protected $sm;
+
+    /**
+     * @param ServiceManager $sm
+     */
+    public function __construct(ServiceManager $sm)
+    {
+        $this-&gt;sm = $sm;
+        $this-&gt;name();
+        $this-&gt;alias();
+    }
+
+    /**
+     * @return $this
+     */
+    protected function name()
+    {
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'name',
+                'required' =&gt; true,
+                'filters' =&gt; array(
+                    array('name' =&gt; 'StripTags'),
+                    array('name' =&gt; 'StringTrim'),
+                ),
+                'validators' =&gt; array(
+                    array(
+                        'name' =&gt; 'StringLength',
+                        'options' =&gt; array(
+                            'encoding' =&gt; 'UTF-8',
+                            'min' =&gt; 2,
+                            'max' =&gt; 50,
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function alias()
+    {
+        $this-&gt;add(
+            array(
+                'name' =&gt; 'alias',
+                'required' =&gt; true,
+                'validators' =&gt; array(
+                    array(
+                        'name' =&gt; 'StringLength',
+                        'options' =&gt; array(
+                            'min' =&gt; 2,
+                            'max' =&gt; 50,
+                        ),
+                    ),
+                    array(
+                        'name' =&gt; 'Regex',
+                        'options' =&gt; array(
+                            'pattern' =&gt; '/^[a-zA-Z0-9]*$/',
+                            'message' =&gt; 'Alias contains invalid characters'
+                        ),
+                    ),
+                ),
+                'filters' =&gt; array(
+                    array('name' =&gt; 'StripTags'),
+                    array('name' =&gt; 'StringTrim'),
+                ),
+            )
+        );
+
+        return $this;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

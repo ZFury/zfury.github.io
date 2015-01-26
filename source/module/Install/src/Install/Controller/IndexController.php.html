@@ -1,0 +1,389 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+/**
+ * Created by PhpStorm.
+ * User: alexander
+ * Date: 12/19/14
+ * Time: 4:58 PM
+ */
+
+namespace Install\Controller;
+
+use Doctrine\DBAL\Driver\PDOMySql\Driver;
+use Install\Form\DbConnection;
+use Install\Form\Filter\DbConnectionInputFilter;
+use Install\Form\Filter\MailConfigInputFilter;
+use Install\Form\Filter\ModulesInputFilter;
+use Install\Form\Modules;
+use Zend\Db\Adapter\Adapter;
+use Zend\Mvc\Controller\AbstractActionController;
+use Zend\View\Model\ViewModel;
+use Zend\Session\Container;
+use Install\Form\MailConfig;
+use Install\Service\Install;
+
+class IndexController extends AbstractActionController
+{
+    /**
+     * @return ViewModel
+     */
+    public function globalRequirementsAction()
+    {
+        $installService = $this-&gt;getServiceLocator()-&gt;get('Install\Service\Install');
+        $sessionProgress = new Container('progress_tracker');
+        $sessionProgress-&gt;offsetSet('global-requirements', Install::TODO);
+        $sessionProgress-&gt;offsetSet('current_step', 'global-requirements');
+        $this-&gt;setProgress();
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $sessionProgress-&gt;offsetSet('global-requirements', Install::DONE);
+            return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                'controller' =&gt; 'index',
+                'action' =&gt; 'database'
+            ]);
+        } else {
+            //PHPVERSION
+            if (version_compare(Install::PHP_VERSION, phpversion(), '&lt;=')) {
+                $phpVersion['status'] = true;
+                $phpVersion['message'] = &quot;PHP version is compatible with ZFury!&quot;;
+            } else {
+                $phpVersion['status'] = false;
+                $phpVersion['message'] = &quot;PHP version is not compatible for ZFury! It might be &quot; .
+                    Install::PHP_VERSION . &quot; or higher&quot;;
+            }
+
+            //FILES&amp;DIRECTORIES
+            $checked = $installService-&gt;checkFiles(Install::GLOBAL_REQUIREMENTS);
+            $checkedDirectories = $checked['checkedDirectories'];
+            $checkedFiles = $checked['checkedFiles'];
+
+            $continue = Install::BAD;
+            if (!$installService-&gt;inArrayRecursive(Install::BAD, $checkedDirectories) &amp;&amp;
+                !$installService-&gt;inArrayRecursive(Install::BAD, $checkedFiles) &amp;&amp;
+                true === $phpVersion['status']) {
+                $continue = Install::GOOD;
+            }
+
+            return new ViewModel([
+                'directories' =&gt; $checkedDirectories,
+                'phpVersion' =&gt; $phpVersion,
+                'files' =&gt; $checkedFiles,
+                'continue' =&gt; $continue
+            ]);
+        }
+    }
+
+    /**
+     * @return ViewModel
+     */
+    public function databaseAction()
+    {
+        $installService = $this-&gt;getServiceLocator()-&gt;get('Install\Service\Install');
+        $sessionProgress = new Container('progress_tracker');
+        $sessionProgress-&gt;offsetSet('current_step', 'database');
+        $previousStep = $installService-&gt;checkPreviousStep();
+        if (null !== $previousStep) {
+            return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                'controller' =&gt; 'index',
+                'action' =&gt; $previousStep
+            ]);
+        }
+        $sessionProgress-&gt;offsetSet('database', Install::TODO);
+        $sessionForms = new Container('forms');
+        $this-&gt;setProgress();
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $dbForm = new DbConnection();
+            $dbForm-&gt;setInputFilter(new DbConnectionInputFilter($this-&gt;getServiceLocator()));
+            $dbForm-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            if ($dbForm-&gt;isValid()) {
+                $sessionForms-&gt;offsetSet('dbForm', $dbForm-&gt;getData());
+                $sessionProgress-&gt;offsetSet('database', Install::DONE);
+                try {
+                    $installService-&gt;checkDbConnection($dbForm);
+                    $installService-&gt;createDbConfig($dbForm);
+
+                    return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                        'controller' =&gt; 'index',
+                        'action' =&gt; 'mail'
+                    ]);
+                } catch (\PDOException $e) {
+                    $dbForm-&gt;get('host')-&gt;setMessages([$e-&gt;getMessage()]);
+                } catch (\Exception $e) {
+                    $dbForm-&gt;get('port')-&gt;setMessages([$e-&gt;getMessage()]);
+                }
+            }
+        } else {
+            $dbForm = new DbConnection();
+            if (null !== $sessionForms-&gt;offsetGet('dbForm')) {
+                $dbForm-&gt;setData($sessionForms-&gt;offsetGet('dbForm'));
+            }
+        }
+
+        return new ViewModel(['dbForm' =&gt; $dbForm]);
+    }
+
+    /**
+     * @return ViewModel
+     */
+    public function mailAction()
+    {
+        $installService = $this-&gt;getServiceLocator()-&gt;get('Install\Service\Install');
+        $sessionProgress = new Container('progress_tracker');
+        $sessionProgress-&gt;offsetSet('current_step', 'mail');
+        $previousStep = $installService-&gt;checkPreviousStep();
+        if (null !== $previousStep) {
+            return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                'controller' =&gt; 'index',
+                'action' =&gt; $previousStep
+            ]);
+        }
+
+        $sessionProgress-&gt;offsetSet('mail', Install::TODO);
+        $sessionForms = new Container('forms');
+        $this-&gt;setProgress();
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $mailForm = new MailConfig();
+            $mainInputFilter = new MailConfigInputFilter($this-&gt;getServiceLocator());
+            $mailForm-&gt;setInputFilter($mainInputFilter);
+            $mailForm-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            if ($mailForm-&gt;isValid()) {
+                try {
+                    $sessionForms-&gt;offsetSet('mailForm', $mailForm-&gt;getData());
+                    $installService-&gt;createMailConfig($mailForm);
+                    $sessionProgress-&gt;offsetSet('mail', Install::DONE);
+
+                    return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                        'controller' =&gt; 'index',
+                        'action' =&gt; 'modules'
+                    ]);
+                } catch (\Exception $ex) {
+                    $mailForm-&gt;get('host')-&gt;setMessages([$ex-&gt;getMessage()]);
+                }
+            }
+        } else {
+            $mailForm = new MailConfig();
+            if (null !== $sessionForms-&gt;offsetGet('mailForm')) {
+                $mailForm-&gt;setData($sessionForms-&gt;offsetGet('mailForm'));
+            }
+        }
+
+        return new ViewModel(['mailForm' =&gt; $mailForm]);
+    }
+
+    /**
+     * @return ViewModel
+     */
+    public function modulesAction()
+    {
+        $installService = $this-&gt;getServiceLocator()-&gt;get('Install\Service\Install');
+        $sessionProgress = new Container('progress_tracker');
+        $sessionProgress-&gt;offsetSet('current_step', 'modules');
+        $previousStep = $installService-&gt;checkPreviousStep();
+        if (null !== $previousStep) {
+            return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                'controller' =&gt; 'index',
+                'action' =&gt; $previousStep
+            ]);
+        }
+
+        $sessionProgress-&gt;offsetSet('modules', Install::TODO);
+        $sessionForms = new Container('forms');
+        $this-&gt;setProgress();
+
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $modulesForm = new Modules();
+            $modulesForm-&gt;setInputFilter(new ModulesInputFilter($this-&gt;getServiceLocator()));
+            $modulesForm-&gt;setData($this-&gt;getRequest()-&gt;getPost());
+            if ($modulesForm-&gt;isValid()) {
+                $sessionForms-&gt;offsetSet('modulesForm', $modulesForm-&gt;getData());
+
+                try {
+                    $installService-&gt;hideModules($modulesForm);
+                    $sessionProgress-&gt;offsetSet('modules', Install::DONE);
+                    return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                        'controller' =&gt; 'index',
+                        'action' =&gt; 'modules-requirements'
+                    ]);
+                } catch (\Exception $e) {
+                    $modulesForm-&gt;get('Categories')-&gt;setMessages([$e-&gt;getMessage()]);
+                }
+            }
+        } else {
+            $modulesForm = new Modules();
+            if (null !== $sessionForms-&gt;offsetGet('modulesForm')) {
+                $modulesForm-&gt;setData($sessionForms-&gt;offsetGet('modulesForm'));
+            }
+        }
+
+        return new ViewModel(['modulesForm' =&gt; $modulesForm]);
+    }
+
+    /**
+     * @return ViewModel
+     */
+    public function modulesRequirementsAction()
+    {
+        $installService = $this-&gt;getServiceLocator()-&gt;get('Install\Service\Install');
+        $sessionProgress = new Container('progress_tracker');
+        $sessionProgress-&gt;offsetSet('current_step', 'modules-requirements');
+        $previousStep = $installService-&gt;checkPreviousStep();
+        if (null !== $previousStep) {
+            return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                'controller' =&gt; 'index',
+                'action' =&gt; $previousStep
+            ]);
+        }
+        $sessionProgress-&gt;offsetSet('modules-requirements', Install::TODO);
+        $this-&gt;setProgress();
+        if ($this-&gt;getRequest()-&gt;isPost()) {
+            $sessionProgress-&gt;offsetSet('modules-requirements', Install::DONE);
+
+            return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                'controller' =&gt; 'index',
+                'action' =&gt; 'finish'
+            ]);
+        } else {
+            $continue = Install::BAD;
+            //TOOLS
+            $checkedTools = $installService-&gt;checkTools();
+            foreach ($checkedTools as $tool) {
+                if (true === array_values($tool)[0]['status']) {
+                    $continue = Install::GOOD;
+                }
+            }
+
+            //FILES&amp;DIRECTORIES
+            $checked = $installService-&gt;checkFiles();
+            $checkedDirectories = $checked['checkedDirectories'];
+            $checkedFiles = $checked['checkedFiles'];
+
+            if (!$installService-&gt;inArrayRecursive(Install::BAD, $checkedDirectories) &amp;&amp;
+                !$installService-&gt;inArrayRecursive(Install::BAD, $checkedFiles) &amp;&amp;
+                Install::GOOD === $continue) {
+                $continue = Install::GOOD;
+            } else {
+                $continue = Install::BAD;
+            }
+
+            return new ViewModel([
+                'directories' =&gt; $checkedDirectories,
+                'files' =&gt; $checkedFiles,
+                'tools' =&gt; $checkedTools,
+                'continue' =&gt; $continue
+            ]);
+        }
+    }
+
+    /**
+     * @return ViewModel
+     */
+    public function finishAction()
+    {
+        $sessionProgress = new Container('progress_tracker');
+        $installService = $this-&gt;getServiceLocator()-&gt;get('Install\Service\Install');
+        $sessionProgress-&gt;offsetSet('current_step', 'finish');
+        $previousStep = $installService-&gt;checkPreviousStep();
+        if (null !== $previousStep) {
+            return $this-&gt;redirect()-&gt;toRoute('install/default', [
+                'controller' =&gt; 'index',
+                'action' =&gt; $previousStep
+            ]);
+        }
+        //FILES&amp;DIRECTORIES
+        $checked = $installService-&gt;checkFiles();
+        $checkedDirectoriesLocal = $checked['checkedDirectories'];
+        $checkedFilesLocal = $checked['checkedFiles'];
+        $checked = $installService-&gt;checkFiles(Install::GLOBAL_REQUIREMENTS);
+        $checkedDirectoriesGlobal = $checked['checkedDirectories'];
+        $checkedFilesGlobal = $checked['checkedFiles'];
+        $checkedDirectories = array_merge($checkedDirectoriesLocal, $checkedDirectoriesGlobal);
+        $checkedFiles = array_merge($checkedFilesLocal, $checkedFilesGlobal);
+        //DOCTRINE2
+        $doctrine = [];
+        exec('./vendor/bin/doctrine-module orm:schema-tool:update --force', $output, $returnUpdate);
+        exec(
+            'vendor/doctrine/doctrine-module/bin/doctrine-module migrations:migrate --dry-run',
+            $output,
+            $returnMigrate
+        );
+        if ((isset($returnUpdate) &amp;&amp; 0 === $returnUpdate) &amp;&amp; (isset($returnMigrate) &amp;&amp; 0 === $returnMigrate)) {
+            $doctrine['status'] = Install::GOOD;
+            $doctrine['message'] = &quot;Doctrine2 had successfully updated DB schema and migrated!&quot;;
+        } else {
+            $doctrine['status'] = Install::BAD;
+            $doctrine['message'] = &quot;Doctrine2 had not updated DB schema, update it and migrate by yourself!&quot;;
+        }
+
+        $sessionProgress-&gt;offsetSet('finish', Install::DONE);
+        $this-&gt;setProgress();
+        $sessionProgress-&gt;getManager()-&gt;getStorage()-&gt;clear('progress_tracker');
+        $sessionProgress-&gt;getManager()-&gt;getStorage()-&gt;clear('forms');
+
+        //HIDING INSTALL
+        $installService-&gt;replaceRowInFile('config/application.config.php', &quot;'Install'&quot;, &quot;//'Install'&quot;);
+        //UNHIDING BJY
+        $installService-&gt;replaceRowInFile('config/application.config.php', &quot;//'BjyAuthorize'&quot;, &quot;'BjyAuthorize',&quot;);
+//        rename(Install::MODULES . &quot;Install&quot;, Install::MODULES . &quot;.Install&quot;);
+
+        return new ViewModel([
+            'directories' =&gt; $checkedDirectories,
+            'files' =&gt; $checkedFiles,
+            'doctrine' =&gt; $doctrine
+        ]);
+    }
+
+    /**
+     * Sets installation progress
+     */
+    public function setProgress()
+    {
+        $steps = $this-&gt;getServiceLocator()-&gt;get('Install\Service\Install')-&gt;checkProgress();
+        $this-&gt;layout()-&gt;setVariable('steps', $steps);
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>

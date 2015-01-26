@@ -1,0 +1,140 @@
+<html>
+    <head>
+        <script
+            type="text/javascript"
+            src="../../../../../../js/jquery-1.4.2.min.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shCore.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushJScript.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushPhp.js">
+        </script>
+        <script
+            type="text/javascript"
+            src="../../../../../../syntax_highlighter/scripts/shBrushXml.js">
+        </script>
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCore.css" rel="stylesheet"
+            type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shCoreEclipse.css"
+            rel="stylesheet" type="text/css"
+        />
+        <link
+            href="../../../../../../syntax_highlighter/styles/shThemeWordpress.css"
+            rel="stylesheet" type="text/css"
+        />
+    </head>
+    <body>
+        <pre class="brush: php">&lt;?php
+
+namespace Fury\View\Helper\Grid;
+
+use Fury\Grid\AbstractGrid;
+use Zend\View\Helper\AbstractHelper;
+
+abstract class AbstractGridHelper extends AbstractHelper
+{
+    /**
+     * @var AbstractGrid
+     */
+    protected $grid;
+
+    /**
+     * @var string
+     */
+    protected $id = '';
+
+    /**
+     * @var array
+     */
+    protected $class = [];
+
+    /**
+     * @return string
+     */
+    public function __toString()
+    {
+        return $this-&gt;getWidget();
+    }
+
+    /**
+     * @return string
+     */
+    abstract public function getWidget();
+
+    /**
+     * @param array $options
+     * @return $this
+     */
+    public function setOptions(array $options)
+    {
+        foreach ($options as $key =&gt; $value) {
+            $method = 'set' . str_replace(' ', '', ucwords(str_replace('_', ' ', $key)));
+            if (method_exists($this, $method)) {
+                $this-&gt;{$method}($value);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param $id
+     * @return $this
+     */
+    public function setId($id)
+    {
+        $this-&gt;id = $id;
+
+        return $this;
+    }
+
+    /**
+     * @param string|array $classes
+     * @return $this
+     */
+    public function setClass($classes)
+    {
+        if (is_array($classes)) {
+            $this-&gt;class = $classes;
+        } else {
+            $this-&gt;class = [$classes];
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param AbstractGrid $grid
+     * @param array $options
+     * @return $this
+     */
+    public function __invoke(AbstractGrid $grid, $options = [])
+    {
+        $this-&gt;grid = $grid;
+
+        if (!empty($options)) {
+            $this-&gt;setOptions($options);
+        }
+
+        return $this;
+    }
+}
+</pre>
+        <script type="text/javascript">
+             SyntaxHighlighter.all();
+             jQuery('.gutter div').each(function(key, data){
+                jQuery(data).prepend('<a name="L'+jQuery(data).text()+'"/>');
+             });
+        </script>
+    </body>
+</html>
