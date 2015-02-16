@@ -21,7 +21,7 @@ class EntityType extends EntityBase
      * @var int
      * @Annotation\Type("Zend\Form\Element\Hidden")
      * @ORM\Id
-     * @ORM\Column(type="integer", options={"unsigned"=true})
+     * @ORM\Column(name="id", type="integer", options={"unsigned"=true})
      * @ORM\GeneratedValue(strategy="AUTO")
      */
     protected $id;
@@ -32,9 +32,9 @@ class EntityType extends EntityBase
      * @Annotation\Required(true)
      * @Annotation\Options({"label":"Alias entity:"})
      * @Annotation\Attributes({"class":"form-control"})
-     * @ORM\Column(type="string", unique=true,  nullable=false)
+     * @ORM\Column(name="alias", type="string", unique=true,  nullable=false)
      */
-    protected $aliasEntity;
+    protected $alias;
 
     /**
      * @var string
@@ -42,7 +42,7 @@ class EntityType extends EntityBase
      * @Annotation\Required(true)
      * @Annotation\Options({"label":"Entity:"})
      * @Annotation\Attributes({"class":"form-control"})
-     * @ORM\Column(type="string", unique=true, nullable=false)
+     * @ORM\Column(name="entity", type="string", unique=true, nullable=false)
      */
     protected $entity;
 
@@ -51,39 +51,41 @@ class EntityType extends EntityBase
      * @Annotation\Type("Zend\Form\Element\Textarea")
      * @Annotation\Required(true)
      * @Annotation\Options({"label":"Description:"})
-     * @ORM\Column(type="text", nullable=false)
+     * @ORM\Column(name="description", type="text", nullable=false)
      */
     protected $description;
 
     /**
      * @var boolean
      * @Annotation\Type("Zend\Form\Element\Checkbox")
+     * @Annotation\Name("isVisible")
      * @Annotation\Required(false)
      * @Annotation\Options({"label":"Visibility of comments:"})
-     * @ORM\Column(type="boolean", nullable=true)
+     * @ORM\Column(name="is_visible", type="boolean", nullable=false)
      */
-    protected $visibleComment;
+    protected $isVisible;
 
     /**
      * @var boolean
      * @Annotation\Type("Zend\Form\Element\Checkbox")
+     * @Annotation\Name("isEnabled")
      * @Annotation\Required(false)
      * @Annotation\Options({"label":"Possible to comment:"})
-     * @ORM\Column(type="boolean", nullable=true)
+     * @ORM\Column(name="is_enabled", type="boolean", nullable=false)
      */
-    protected $enabledComment;
+    protected $isEnabled;
 
     /**
-     * @var created
+     * @var \Datetime
      * @Annotation\Exclude
-     * @ORM\Column(type="datetime")
+     * @ORM\Column(name="created", type="datetime")
      */
     protected $created;
 
     /**
-     * @var updated
+     * @var \Datetime
      * @Annotation\Exclude
-     * @ORM\Column(type="datetime")
+     * @ORM\Column(name="updated", type="datetime")
      */
     protected $updated;
 
@@ -169,25 +171,25 @@ class EntityType extends EntityBase
     }
 
     /**
-     * Set aliasEntity.
+     * Set alias.
      *
-     * @param int $aliasEntity
+     * @param int $alias
      *
      * @return void
      */
-    public function setAliasEntity($aliasEntity)
+    public function setAlias($alias)
     {
-        $this->aliasEntity = $aliasEntity;
+        $this->alias = $alias;
     }
 
     /**
-     * Get aliasEntity.
+     * Get alias.
      *
      * @return string
      */
-    public function getAliasEntity()
+    public function getAlias()
     {
-        return $this->aliasEntity;
+        return $this->alias;
     }
 
     /**
@@ -215,13 +217,13 @@ class EntityType extends EntityBase
     /**
      * Set visibleComment.
      *
-     * @param int $visibleComment
+     * @param int $visible
      *
      * @return void
      */
-    public function setVisibleComment($visibleComment)
+    public function setIsVisible($visible)
     {
-        $this->visibleComment = $visibleComment;
+        $this->isVisible = $visible;
     }
 
     /**
@@ -229,21 +231,21 @@ class EntityType extends EntityBase
      *
      * @return int
      */
-    public function getVisibleComment()
+    public function getIsVisible()
     {
-        return $this->visibleComment;
+        return $this->isVisible;
     }
 
     /**
      * Set enabledComment.
      *
-     * @param int $enabledComment
+     * @param int $isEnabled
      *
      * @return void
      */
-    public function setEnabledComment($enabledComment)
+    public function setIsEnabled($isEnabled)
     {
-        $this->enabledComment = $enabledComment;
+        $this->isEnabled = $isEnabled;
     }
 
     /**
@@ -251,9 +253,9 @@ class EntityType extends EntityBase
      *
      * @return int
      */
-    public function getEnabledComment()
+    public function getIsEnabled()
     {
-        return $this->enabledComment;
+        return $this->isEnabled;
     }
 
     /**
@@ -289,7 +291,7 @@ class EntityType extends EntityBase
     }
 
     /**
-     * Set updated.
+     * Set $updated.
      *
      * @param string $updated
      *
@@ -305,20 +307,18 @@ class EntityType extends EntityBase
      */
     public function toArray()
     {
-        {
-            $result = array(
-                "id" => $this->getId(),
-                "aliasEntity" => $this->getAliasEntity(),
-                "entity" => $this->getEntity(),
-                "VisibleComment" => $this->getVisibleComment(),
-                "enabledComment" =>$this->getEnabledComment(),
-                "description" => $this->getDescription(),
-                "created" => $this->getCreated(),
-                "updated" => $this->getUpdated(),
-            );
+        $result = [
+            "id" => $this->getId(),
+            "alias" => $this->getAlias(),
+            "entity" => $this->getEntity(),
+            "is_visible" => $this->getIsVisible(),
+            "is_enabled" =>$this->getIsEnabled(),
+            "description" => $this->getDescription(),
+            "created" => $this->getCreated(),
+            "updated" => $this->getUpdated(),
+        ];
 
-            return $result;
-        }
+        return $result;
     }
 }
 
